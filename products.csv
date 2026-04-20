@@ -1,0 +1,13 @@
+type,id,name,brand,category,costPrice,sellingPrice,quantityInStock,variantCode,sizeInMl,itemCount
+PERFUME,PP001,Superior Perfume,Arthur Ford,For Him,125.0,199.0,10,#SUP50,50,0
+PERFUME,PP002,Gold & Rose Gold Perfume,Arthur Ford,For Her,125.0,199.0,10,#GRG50,50,0
+PERFUME,PS001,Travel Size Perfume,Arthur Ford,Travel,80.0,125.0,10,#TRV30,30,0
+GENERAL,PW001,Body Wash 450ml,Arthur Ford,Body Wash,0.0,85.0,10,,0,0
+GENERAL,PB001,Body Lotion 400ml,Arthur Ford,Body Lotion,60.0,85.0,10,,0,0
+GENERAL,PR001,Roll-on Deodorant 50ml,Arthur Ford,Roll-on,22.0,39.0,10,,0,0
+GIFTSET,PG001,PureLite Glow Gift Set,Arthur Ford,Gift Set,0.0,240.0,10,,0,4
+GENERAL,PT001,Arthur Ford Watch,Arthur Ford,Watch,0.0,350.0,10,,0,0
+GENERAL,PC001,Combo 1 Perfume + Roll-on,Arthur Ford,Combo,147.0,219.0,10,,0,0
+GENERAL,PC002,Combo 2 Perfume + Roll-on + Lotion,Arthur Ford,Combo,207.0,299.0,10,,0,0
+GENERAL,PC003,Combo 3 Perfume + Body Spray Him,Arthur Ford,Combo,125.0,249.0,10,,0,0
+GENERAL,PC004,Combo 4 Perfume + Body Spray Her,Arthur Ford,Combo,125.0,235.0,10,,0,0
