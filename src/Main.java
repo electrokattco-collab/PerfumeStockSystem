@@ -55,6 +55,7 @@ public class Main {
             System.out.println("11. Load Starter Inventory");
             System.out.println("12. View All Sales");
             System.out.println("13. Sales Summary Report");
+            System.out.println("14. Restock Product");
             System.out.println("0. Exit");
             System.out.print("Choose an option: ");
 
@@ -74,6 +75,7 @@ public class Main {
                 case 11 -> loadStarterInventory();
                 case 12 -> viewAllSales();
                 case 13 -> salesSummaryReport();
+                case 14 -> restockProduct();
                 case 0 -> {
                     saveData();
                     System.out.println("Exiting system...");
@@ -149,6 +151,7 @@ public class Main {
         products.add(perfume);
         System.out.println("Perfume added successfully.");
     }
+
     public static int getNextSaleNumber() {
         int max = 0;
         for (Sale sale : sales) {
