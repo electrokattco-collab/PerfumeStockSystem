@@ -1,562 +1,502 @@
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Main {
-    static Scanner scanner = new Scanner(System.in);
-    static ArrayList<Product> products = new ArrayList<>();
-    static ArrayList<Sale> sales = new ArrayList<>();
-    static int perfume50Counter = 1;
-    static int perfume30Counter = 1;
-    static int rollOnCounter = 1;
-    static int bodyLotionCounter = 1;
-    static int bodyWashCounter = 1;
-    static int giftSetCounter = 1;
-    static int comboCounter = 1;
-    static int watchCounter = 1;
-    static int otherCounter = 1;
-    static int saleCounter = 1;
-    static final int LOW_STOCK_LEVEL = 5;
-
-    public static String generateProductId(String prefix) {
-        return switch (prefix) {
-            case "PP" -> String.format("PP%03d", perfume50Counter++);
-            case "PS" -> String.format("PS%03d", perfume30Counter++);
-            case "PR" -> String.format("PR%03d", rollOnCounter++);
-            case "PB" -> String.format("PB%03d", bodyLotionCounter++);
-            case "PW" -> String.format("PW%03d", bodyWashCounter++);
-            case "PG" -> String.format("PG%03d", giftSetCounter++);
-            case "PC" -> String.format("PC%03d", comboCounter++);
-            case "PT" -> String.format("PT%03d", watchCounter++);
-            default -> String.format("PN%03d", otherCounter++);
-        };
-    }
+    private static final Scanner scanner = new Scanner(System.in);
+    private static final InventoryManager inventoryManager = new InventoryManager();
 
     public static void main(String[] args) {
-        products = FileManager.loadProducts();
-        sales = FileManager.loadSales();
-        initializeProductCounters();
-        saleCounter = getNextSaleNumber();
+        inventoryManager.loadData();
 
         int choice;
-
         do {
-            System.out.println("\n=== PERFUME STOCK SYSTEM ===");
-            System.out.println("1. Add Perfume");
-            System.out.println("2. Add Gift Set");
-            System.out.println("3. Add General Product");
-            System.out.println("4. View All Products");
-            System.out.println("5. Search Product");
-            System.out.println("6. Update Product");
-            System.out.println("7. Delete Product");
-            System.out.println("8. Record Sale");
-            System.out.println("9. View Low Stock");
-            System.out.println("10. Save Data");
-            System.out.println("11. Load Starter Inventory");
-            System.out.println("12. View All Sales");
-            System.out.println("13. Sales Summary Report");
-            System.out.println("14. Restock Product");
-            System.out.println("0. Exit");
-            System.out.print("Choose an option: ");
-
-            choice = readInt();
+            printMenu();
+            choice = readInt("Choose an option: ");
 
             switch (choice) {
-                case 1 -> addPerfume();
-                case 2 -> addGiftSet();
-                case 3 -> addGeneralProduct();
-                case 4 -> viewAllProducts();
-                case 5 -> searchProduct();
-                case 6 -> updateProduct();
-                case 7 -> deleteProduct();
-                case 8 -> recordSale();
-                case 9 -> viewLowStock();
-                case 10 -> saveData();
-                case 11 -> loadStarterInventory();
-                case 12 -> viewAllSales();
-                case 13 -> salesSummaryReport();
-                case 14 -> restockProduct();
-                case 0 -> {
-                    saveData();
+                case 1 -> recordInventory();
+                case 2 -> recordSale();
+                case 3 -> viewInventory();
+                case 4 -> viewSales();
+                case 5 -> viewProfitSummary();
+                case 6 -> editInventoryEntry();
+                case 7 -> deleteInventoryEntry();
+                case 8 -> editSaleEntry();
+                case 9 -> deleteSaleEntry();
+                case 10 -> viewReportsMenu();
+                case 11 -> clearInventoryData();
+                case 12 -> {
+                    inventoryManager.saveData();
                     System.out.println("Exiting system...");
                 }
                 default -> System.out.println("Invalid option.");
             }
-        } while (choice != 0);
+        } while (choice != 12);
     }
 
-    public static String generateSaleId() {
-        String id = String.format("SAL%03d", saleCounter);
-        saleCounter++;
-        return id;
+    private static void printMenu() {
+        System.out.println("\n=== PERFUME SHOP SYSTEM ===");
+        System.out.println("1. Record Inventory");
+        System.out.println("2. Record Sale");
+        System.out.println("3. View Inventory");
+        System.out.println("4. View Sales");
+        System.out.println("5. View Profit / Summary");
+        System.out.println("6. Edit Inventory Entry");
+        System.out.println("7. Delete Inventory Entry");
+        System.out.println("8. Edit Sale Entry");
+        System.out.println("9. Delete Sale Entry");
+        System.out.println("10. View Reports");
+        System.out.println("11. Clear Inventory Data");
+        System.out.println("12. Exit");
     }
 
-    public static void initializeProductCounters() {
-        for (Product product : products) {
-            String id = product.getProductId();
-
-            try {
-                String prefix = id.substring(0, 2);
-                int number = Integer.parseInt(id.substring(2));
-
-                switch (prefix) {
-                    case "PP" -> perfume50Counter = Math.max(perfume50Counter, number + 1);
-                    case "PS" -> perfume30Counter = Math.max(perfume30Counter, number + 1);
-                    case "PR" -> rollOnCounter = Math.max(rollOnCounter, number + 1);
-                    case "PB" -> bodyLotionCounter = Math.max(bodyLotionCounter, number + 1);
-                    case "PW" -> bodyWashCounter = Math.max(bodyWashCounter, number + 1);
-                    case "PG" -> giftSetCounter = Math.max(giftSetCounter, number + 1);
-                    case "PC" -> comboCounter = Math.max(comboCounter, number + 1);
-                    case "PT" -> watchCounter = Math.max(watchCounter, number + 1);
-                    case "PN" -> otherCounter = Math.max(otherCounter, number + 1);
-                }
-            } catch (Exception ignored) {
-            }
-        }
-    }
-
-    public static void addPerfume() {
-        System.out.print("Enter perfume name: ");
-        String name = scanner.nextLine();
-
-        System.out.print("Enter brand: ");
-        String brand = scanner.nextLine();
-
-        System.out.print("Enter category: ");
-        String category = scanner.nextLine();
-
-        System.out.print("Enter variant code: ");
-        String variantCode = scanner.nextLine();
-
-        int sizeInMl;
-        do {
-            System.out.print("Enter bottle size (30 or 50): ");
-            sizeInMl = readInt();
-            if (sizeInMl != 30 && sizeInMl != 50) {
-                System.out.println("Only 30ml or 50ml allowed.");
-            }
-        } while (sizeInMl != 30 && sizeInMl != 50);
-
-        System.out.print("Enter cost price: ");
-        double costPrice = readDouble();
-
-        System.out.print("Enter selling price: ");
-        double sellingPrice = readDouble();
-
-        System.out.print("Enter quantity in stock: ");
-        int quantity = readInt();
-
-        String prefix = (sizeInMl == 50) ? "PP" : "PS";
-        Product perfume = new Perfume(generateProductId(prefix), name, brand, category, costPrice, sellingPrice, quantity, variantCode, sizeInMl);
-        products.add(perfume);
-        System.out.println("Perfume added successfully.");
-    }
-
-    public static int getNextSaleNumber() {
-        int max = 0;
-        for (Sale sale : sales) {
-            String id = sale.getSaleId().replace("SAL", "");
-            try {
-                int number = Integer.parseInt(id);
-                if (number > max) {
-                    max = number;
-                }
-            } catch (Exception ignored) {
-            }
-        }
-        return max + 1;
-    }
-    public static void viewAllSales() {
-        if (sales.isEmpty()) {
-            System.out.println("No sales found.");
+    private static void recordInventory() {
+        String type = selectProductType();
+        if (type == null) {
             return;
         }
 
-        for (Sale sale : sales) {
-            System.out.println("\n============================");
-            System.out.println("Sale ID: " + sale.getSaleId());
-            System.out.println("Product ID: " + sale.getProductId());
-            System.out.println("Product Name: " + sale.getProductName());
-            System.out.println("Quantity Sold: " + sale.getQuantitySold());
-            System.out.println("Total Amount: R" + sale.getTotalAmount());
-            System.out.println("Total Profit: R" + sale.getTotalProfit());
-            System.out.println("Date/Time: " + sale.getDateTime());
-        }
-        System.out.println("\n============================");
-    }
-    public static void salesSummaryReport() {
-        if (sales.isEmpty()) {
-            System.out.println("No sales available for report.");
+        ProductCatalog.ProductTemplate template = selectCatalogProduct(type);
+        if (template == null) {
             return;
         }
 
-        int totalUnitsSold = 0;
-        double totalRevenue = 0;
-        double totalProfit = 0;
-
-        for (Sale sale : sales) {
-            totalUnitsSold += sale.getQuantitySold();
-            totalRevenue += sale.getTotalAmount();
-            totalProfit += sale.getTotalProfit();
-        }
-
-        System.out.println("\n=== SALES SUMMARY REPORT ===");
-        System.out.println("Number of Sales: " + sales.size());
-        System.out.println("Total Units Sold: " + totalUnitsSold);
-        System.out.println("Total Revenue: R" + totalRevenue);
-        System.out.println("Total Profit: R" + totalProfit);
-    }
-    public static void addGiftSet() {
-        System.out.print("Enter gift set name: ");
-        String name = scanner.nextLine();
-
-        System.out.print("Enter brand: ");
-        String brand = scanner.nextLine();
-
-        System.out.print("Enter category: ");
-        String category = scanner.nextLine();
-
-        System.out.print("Enter cost price: ");
-        double costPrice = readDouble();
-
-        System.out.print("Enter selling price: ");
-        double sellingPrice = readDouble();
-
-        System.out.print("Enter quantity in stock: ");
-        int quantity = readInt();
-
-        System.out.print("Enter number of items in set: ");
-        int itemCount = readInt();
-
-        Product giftSet = new GiftSet(generateProductId("PG"), name, brand, category, costPrice, sellingPrice, quantity, itemCount);        products.add(giftSet);
-        System.out.println("Gift set added successfully.");
-    }
-
-    public static void addGeneralProduct() {
-        System.out.print("Enter product name: ");
-        String name = scanner.nextLine();
-
-        System.out.print("Enter brand: ");
-        String brand = scanner.nextLine();
-
-        System.out.print("Enter category: ");
-        String category = scanner.nextLine();
-
-        System.out.print("Enter cost price: ");
-        double costPrice = readDouble();
-
-        System.out.print("Enter selling price: ");
-        double sellingPrice = readDouble();
-
-        System.out.print("Enter quantity in stock: ");
-        int quantity = readInt();
-
-        String prefix;
-        String categoryLower = category.toLowerCase();
-
-        if (categoryLower.contains("roll")) {
-            prefix = "PR";
-        } else if (categoryLower.contains("lotion")) {
-            prefix = "PB";
-        } else if (categoryLower.contains("wash")) {
-            prefix = "PW";
-        } else if (categoryLower.contains("combo")) {
-            prefix = "PC";
-        } else if (categoryLower.contains("watch")) {
-            prefix = "PT";
-        } else {
-            prefix = "PN";
-        }
-
-        Product product = new Product(generateProductId(prefix), name, brand, category, costPrice, sellingPrice, quantity);
-        products.add(product);
-        System.out.println("General product added successfully.");
-    }
-
-    public static void viewAllProducts() {
-        if (products.isEmpty()) {
-            System.out.println("No products found.");
+        int quantity = readInt("Quantity stocked: ");
+        if (quantity <= 0) {
+            System.out.println("Quantity must be greater than zero.");
             return;
         }
 
-        for (Product product : products) {
+        Purchase purchase = inventoryManager.recordInventory(template, quantity);
+        if (purchase == null) {
+            System.out.println("Inventory record failed.");
+            return;
+        }
+
+        String tier = ProductCatalog.getSupplierTierLabel(template, quantity);
+        System.out.println("Inventory recorded successfully.");
+        System.out.println("Entry ID: " + purchase.getPurchaseId());
+        System.out.println("Product: " + purchase.getProductName());
+        System.out.println("Quantity: " + purchase.getQuantity());
+        System.out.println("Supplier tier: " + tier);
+        System.out.println("Supplier unit cost: " + formatMoney(purchase.getUnitCost()));
+        System.out.println("Total purchase cost: " + formatMoney(purchase.getTotalCost()));
+
+        inventoryManager.saveData();
+    }
+
+    private static void recordSale() {
+        ArrayList<Product> stockedProducts = inventoryManager.getStockedProducts();
+
+        if (stockedProducts.isEmpty()) {
+            System.out.println("No stocked products available for sale.");
+            return;
+        }
+
+        Product product = selectStockedProduct(stockedProducts);
+        if (product == null) {
+            return;
+        }
+
+        int quantity = readInt("Quantity sold: ");
+        if (quantity <= 0) {
+            System.out.println("Quantity must be greater than zero.");
+            return;
+        }
+
+        double unitPrice = readDouble("Selling price per item: ");
+        Sale sale = inventoryManager.recordSale(product.getProductId(), quantity, unitPrice);
+
+        if (sale == null) {
+            System.out.println("Sale could not be recorded. Check stock quantity.");
+            return;
+        }
+
+        System.out.println("Sale recorded successfully.");
+        System.out.println("Sale ID: " + sale.getSaleId());
+        System.out.println("Product: " + sale.getProductName());
+        System.out.println("Quantity: " + sale.getQuantity());
+        System.out.println("Total revenue: " + formatMoney(sale.getTotalAmount()));
+        System.out.println("Cost of goods sold: " + formatMoney(sale.getCostOfGoodsSold()));
+        System.out.println("Actual profit: " + formatMoney(sale.getProfit()));
+
+        inventoryManager.saveData();
+    }
+
+    private static void viewInventory() {
+        ArrayList<Purchase> entries = inventoryManager.getPurchases();
+
+        if (entries.isEmpty()) {
+            System.out.println("No inventory recorded yet.");
+            return;
+        }
+
+        System.out.println("\n=== INVENTORY ===");
+        for (Product product : inventoryManager.getProducts()) {
             System.out.println("\n----------------------------");
-            product.displayDetails();
-        }
-        System.out.println("\n----------------------------");
-    }
-
-    public static void searchProduct() {
-        System.out.print("Enter product ID, name, or variant code to search: ");
-        String search = scanner.nextLine().trim().toLowerCase();
-
-        boolean found = false;
-
-        for (Product product : products) {
-            boolean matchesId = product.getProductId().toLowerCase().contains(search);
-            boolean matchesName = product.getName().toLowerCase().contains(search);
-            boolean matchesVariant = false;
-
-            if (product instanceof Perfume perfume) {
-                matchesVariant = perfume.getVariantCode().toLowerCase().contains(search);
-            }
-
-            if (matchesId || matchesName || matchesVariant) {
-                System.out.println("\n----------------------------");
-                product.displayDetails();
-                found = true;
-            }
-        }
-
-        if (!found) {
-            System.out.println("No matching product found.");
+            System.out.println("Product: " + product.getName());
+            System.out.println("Type: " + product.getCategory());
+            System.out.println("Quantity In Stock: " + product.getStockQuantity());
+            System.out.println("Supplier Cost History: " + inventoryManager.getPurchaseBatchSummary(product));
         }
     }
-    public static void updateProduct() {
-        System.out.print("Enter product ID to update: ");
-        String id = scanner.nextLine();
 
-        Product product = findProductById(id);
+    private static void viewSales() {
+        ArrayList<Sale> sales = inventoryManager.getSales();
 
-        if (product == null) {
-            System.out.println("Product not found.");
+        if (sales.isEmpty()) {
+            System.out.println("No sales recorded.");
             return;
         }
 
-        System.out.println("\nUpdating: " + product.getName());
-        System.out.println("1. Update Name");
-        System.out.println("2. Update Brand");
-        System.out.println("3. Update Category");
-        System.out.println("4. Update Cost Price");
-        System.out.println("5. Update Selling Price");
-        System.out.println("6. Update Quantity In Stock");
-
-        if (product instanceof Perfume) {
-            System.out.println("7. Update Variant Code");
-            System.out.println("8. Update Bottle Size");
-        }
-
-        if (product instanceof GiftSet) {
-            System.out.println("9. Update Item Count");
-        }
-
-        System.out.print("Choose field to update: ");
-        int choice = readInt();
-
-        switch (choice) {
-            case 1 -> {
-                System.out.print("Enter new name: ");
-                product.setName(scanner.nextLine());
-                System.out.println("Name updated.");
-            }
-            case 2 -> {
-                System.out.print("Enter new brand: ");
-                product.setBrand(scanner.nextLine());
-                System.out.println("Brand updated.");
-            }
-            case 3 -> {
-                System.out.print("Enter new category: ");
-                product.setCategory(scanner.nextLine());
-                System.out.println("Category updated.");
-            }
-            case 4 -> {
-                System.out.print("Enter new cost price: ");
-                product.setCostPrice(readDouble());
-                System.out.println("Cost price updated.");
-            }
-            case 5 -> {
-                System.out.print("Enter new selling price: ");
-                product.setSellingPrice(readDouble());
-                System.out.println("Selling price updated.");
-            }
-            case 6 -> {
-                System.out.print("Enter new quantity in stock: ");
-                product.setQuantityInStock(readInt());
-                System.out.println("Stock quantity updated.");
-            }
-            case 7 -> {
-                if (product instanceof Perfume perfume) {
-                    System.out.print("Enter new variant code: ");
-                    perfume.setVariantCode(scanner.nextLine());
-                    System.out.println("Variant code updated.");
-                } else {
-                    System.out.println("Invalid choice for this product type.");
-                }
-            }
-            case 8 -> {
-                if (product instanceof Perfume perfume) {
-                    int newSize;
-                    do {
-                        System.out.print("Enter new bottle size (30 or 50): ");
-                        newSize = readInt();
-                        if (newSize != 30 && newSize != 50) {
-                            System.out.println("Only 30ml or 50ml allowed.");
-                        }
-                    } while (newSize != 30 && newSize != 50);
-
-                    perfume.setSizeInMl(newSize);
-                    System.out.println("Bottle size updated.");
-                } else {
-                    System.out.println("Invalid choice for this product type.");
-                }
-            }
-            case 9 -> {
-                if (product instanceof GiftSet giftSet) {
-                    System.out.print("Enter new item count: ");
-                    int newItemCount = readInt();
-                    giftSet.setItemCount(newItemCount);
-                    System.out.println("Item count updated.");
-                } else {
-                    System.out.println("Invalid choice for this product type.");
-                }
-            }
-            default -> System.out.println("Invalid choice.");
+        System.out.println("\n=== SALES ===");
+        for (Sale sale : sales) {
+            System.out.println("\n----------------------------");
+            System.out.println("Sale ID: " + sale.getSaleId());
+            System.out.println("Product: " + sale.getProductName());
+            System.out.println("Type: " + sale.getCategory());
+            System.out.println("Quantity Sold: " + sale.getQuantity());
+            System.out.println("Selling Price: " + formatMoney(sale.getUnitPrice()));
+            System.out.println("Revenue: " + formatMoney(sale.getTotalAmount()));
+            System.out.println("Cost of Goods Sold: " + formatMoney(sale.getCostOfGoodsSold()));
+            System.out.println("Profit: " + formatMoney(sale.getProfit()));
+            System.out.println("Date: " + sale.getDate());
         }
     }
-    public static void deleteProduct() {
-        System.out.print("Enter product ID to delete: ");
-        String id = scanner.nextLine();
 
-        Product product = findProductById(id);
+    private static void viewProfitSummary() {
+        System.out.println("\n=== PROFIT / SUMMARY ===");
+        System.out.println("Money Spent on Inventory: " + formatMoney(inventoryManager.getMoneySpentOnInventory()));
+        System.out.println("Sales Revenue: " + formatMoney(inventoryManager.getSalesRevenue()));
+        System.out.println("Remaining Stock Value: " + formatMoney(inventoryManager.getRemainingStockValue()));
+        System.out.println("Expected Profit on Remaining Stock: " + formatMoney(inventoryManager.getExpectedRemainingProfit()));
+        System.out.println("Actual Profit from Completed Sales: " + formatMoney(inventoryManager.getActualProfitFromSales()));
+        System.out.println("Total Stock Units: " + inventoryManager.getTotalStockUnits());
+    }
 
-        if (product == null) {
-            System.out.println("Product not found.");
+    private static void editInventoryEntry() {
+        ArrayList<Purchase> entries = inventoryManager.getPurchases();
+
+        if (entries.isEmpty()) {
+            System.out.println("No inventory entries available.");
             return;
         }
 
-        products.remove(product);
-        System.out.println("Product deleted successfully.");
-    }
+        printInventoryEntries(entries);
+        String entryId = readText("Enter inventory entry ID to edit: ");
+        Purchase entry = inventoryManager.findPurchaseById(entryId);
 
-    public static void recordSale() {
-        System.out.print("Enter product ID, name, or variant code to sell: ");
-        String searchText = scanner.nextLine();
-
-        Product product = findProduct(searchText);
-
-        if (product == null) {
-            System.out.println("Product not found.");
+        if (entry == null) {
+            System.out.println("Inventory entry not found.");
             return;
         }
 
-        System.out.println("\nProduct found:");
-        product.displayDetails();
+        int newQuantity = readOptionalInt("New quantity", entry.getQuantity());
+        double newCost = readOptionalDouble("New supplier unit cost", entry.getUnitCost());
 
-        System.out.print("Enter quantity sold: ");
-        int quantitySold = readInt();
-
-        if (product.reduceStock(quantitySold)) {
-            Sale sale = new Sale(
-                    generateSaleId(),
-                    product.getProductId(),
-                    product.getName(),
-                    quantitySold,
-                    product.getSellingPrice(),
-                    product.getCostPrice(),
-                    LocalDateTime.now().toString()
-            );
-
-            sales.add(sale);
-            sale.printSummary();
-            System.out.println("Stock updated successfully.");
-        } else {
-            System.out.println("Not enough stock available.");
-        }
-    }
-
-    public static void viewLowStock() {
-        boolean found = false;
-
-        for (Product product : products) {
-            if (product.getQuantityInStock() <= LOW_STOCK_LEVEL) {
-                System.out.println("\nLOW STOCK ALERT");
-                product.displayDetails();
-                found = true;
-            }
+        String result = inventoryManager.editInventoryEntry(entry.getPurchaseId(), newQuantity, newCost);
+        if (result != null) {
+            System.out.println(result);
+            return;
         }
 
-        if (!found) {
-            System.out.println("No low-stock products found.");
+        System.out.println("Inventory entry updated successfully.");
+        inventoryManager.saveData();
+    }
+
+    private static void deleteInventoryEntry() {
+        ArrayList<Purchase> entries = inventoryManager.getPurchases();
+
+        if (entries.isEmpty()) {
+            System.out.println("No inventory entries available.");
+            return;
         }
-    }
 
-    public static void saveData() {
-        FileManager.saveProducts(products);
-        FileManager.saveSales(sales);
-    }
-    public static Product findProductById(String id) {
-        for (Product product : products) {
-            if (product.getProductId().equalsIgnoreCase(id)) {
-                return product;
-            }
+        printInventoryEntries(entries);
+        String entryId = readText("Enter inventory entry ID to delete: ");
+        Purchase entry = inventoryManager.findPurchaseById(entryId);
+
+        if (entry == null) {
+            System.out.println("Inventory entry not found.");
+            return;
         }
-        return null;
+
+        if (!confirmYesNo("Are you sure you want to delete entry " + entry.getPurchaseId() + "? (yes/no): ")) {
+            System.out.println("Delete cancelled.");
+            return;
+        }
+
+        String result = inventoryManager.deleteInventoryEntry(entry.getPurchaseId());
+        if (result != null) {
+            System.out.println(result);
+            return;
+        }
+
+        System.out.println("Inventory entry deleted successfully.");
+        inventoryManager.saveData();
     }
-    public static Product findProduct(String searchText) {
-        String search = searchText.trim().toLowerCase();
 
-        for (Product product : products) {
-            if (product.getProductId().toLowerCase().equals(search)) {
-                return product;
-            }
+    private static void editSaleEntry() {
+        ArrayList<Sale> sales = inventoryManager.getSales();
 
-            if (product.getName().toLowerCase().contains(search)) {
-                return product;
-            }
+        if (sales.isEmpty()) {
+            System.out.println("No sales entries available.");
+            return;
+        }
 
-            if (product instanceof Perfume perfume) {
-                if (perfume.getVariantCode().toLowerCase().equals(search)) {
-                    return perfume;
+        printSalesEntries(sales);
+        String saleId = readText("Enter sale ID to edit: ");
+        Sale sale = inventoryManager.findSaleById(saleId);
+
+        if (sale == null) {
+            System.out.println("Sale entry not found.");
+            return;
+        }
+
+        int newQuantity = readOptionalInt("New quantity sold", sale.getQuantity());
+        double newUnitPrice = readOptionalDouble("New selling price per item", sale.getUnitPrice());
+
+        String result = inventoryManager.editSaleEntry(sale.getSaleId(), newQuantity, newUnitPrice);
+        if (result != null) {
+            System.out.println(result);
+            return;
+        }
+
+        System.out.println("Sale entry updated successfully.");
+        inventoryManager.saveData();
+    }
+
+    private static void deleteSaleEntry() {
+        ArrayList<Sale> sales = inventoryManager.getSales();
+
+        if (sales.isEmpty()) {
+            System.out.println("No sales entries available.");
+            return;
+        }
+
+        printSalesEntries(sales);
+        String saleId = readText("Enter sale ID to delete: ");
+        Sale sale = inventoryManager.findSaleById(saleId);
+
+        if (sale == null) {
+            System.out.println("Sale entry not found.");
+            return;
+        }
+
+        if (!confirmYesNo("Are you sure you want to delete sale " + sale.getSaleId() + "? (yes/no): ")) {
+            System.out.println("Delete cancelled.");
+            return;
+        }
+
+        String result = inventoryManager.deleteSaleEntry(sale.getSaleId());
+        if (result != null) {
+            System.out.println(result);
+            return;
+        }
+
+        System.out.println("Sale entry deleted successfully.");
+        inventoryManager.saveData();
+    }
+
+    private static void viewReportsMenu() {
+        while (true) {
+            System.out.println("\n=== REPORTS ===");
+            System.out.println("1. Low Stock Report");
+            System.out.println("2. Profit by Product");
+            System.out.println("3. Current Stock Valuation");
+            System.out.println("4. Full Transaction History");
+            System.out.println("5. Back");
+
+            int choice = readInt("Choose a report: ");
+
+            switch (choice) {
+                case 1 -> {
+                    int threshold = readInt("Enter low stock threshold: ");
+                    if (threshold < 0) {
+                        threshold = 0;
+                    }
+                    System.out.println(inventoryManager.buildLowStockReport(threshold));
                 }
+                case 2 -> System.out.println(inventoryManager.buildProfitByProductReport());
+                case 3 -> System.out.println(inventoryManager.buildCurrentStockValuationReport());
+                case 4 -> System.out.println(inventoryManager.buildFullTransactionHistoryReport());
+                case 5 -> {
+                    return;
+                }
+                default -> System.out.println("Invalid report option.");
             }
         }
-
-        return null;
-    }
-    public static int readInt() {
-        while (!scanner.hasNextInt()) {
-            System.out.print("Enter a valid whole number: ");
-            scanner.next();
-        }
-        int value = scanner.nextInt();
-        scanner.nextLine();
-        return value;
     }
 
-    public static void loadStarterInventory() {
-        if (!products.isEmpty()) {
-            System.out.println("Starter inventory was not loaded because products already exist.");
-            System.out.println("Use it only on a fresh system, or delete existing items first.");
+    private static void clearInventoryData() {
+        if (!confirmYesNo("Are you sure you want to clear all recorded inventory and sales data? (yes/no): ")) {
+            System.out.println("Clear action cancelled.");
             return;
         }
 
-        products.add(new Perfume(generateProductId("PP"), "Superior Perfume", "Arthur Ford", "For Him", 125, 199, 10, "#SUP50", 50));
-        products.add(new Perfume(generateProductId("PP"), "Gold & Rose Gold Perfume", "Arthur Ford", "For Her", 125, 199, 10, "#GRG50", 50));
-        products.add(new Perfume(generateProductId("PS"), "Travel Size Perfume", "Arthur Ford", "Travel", 80, 125, 10, "#TRV30", 30));
-
-        products.add(new Product(generateProductId("PW"), "Body Wash 450ml", "Arthur Ford", "Body Wash", 0, 85, 10));
-        products.add(new Product(generateProductId("PB"), "Body Lotion 400ml", "Arthur Ford", "Body Lotion", 60, 85, 10));
-        products.add(new Product(generateProductId("PR"), "Roll-on Deodorant 50ml", "Arthur Ford", "Roll-on", 22, 39, 10));
-
-        products.add(new GiftSet(generateProductId("PG"), "PureLite Glow Gift Set", "Arthur Ford", "Gift Set", 0, 240, 10, 4));
-
-        products.add(new Product(generateProductId("PT"), "Arthur Ford Watch", "Arthur Ford", "Watch", 0, 350, 10));
-
-        products.add(new Product(generateProductId("PC"), "Combo 1 Perfume + Roll-on", "Arthur Ford", "Combo", 147, 219, 10));
-        products.add(new Product(generateProductId("PC"), "Combo 2 Perfume + Roll-on + Lotion", "Arthur Ford", "Combo", 207, 299, 10));
-        products.add(new Product(generateProductId("PC"), "Combo 3 Perfume + Body Spray Him", "Arthur Ford", "Combo", 125, 249, 10));
-        products.add(new Product(generateProductId("PC"), "Combo 4 Perfume + Body Spray Her", "Arthur Ford", "Combo", 125, 235, 10));
-
-        System.out.println("Starter inventory loaded successfully.");
+        inventoryManager.clearRecordedData();
+        System.out.println("All recorded inventory and sales data have been cleared.");
     }
 
-    public static double readDouble() {
-        while (!scanner.hasNextDouble()) {
-            System.out.print("Enter a valid number: ");
-            scanner.next();
+    private static void printInventoryEntries(ArrayList<Purchase> entries) {
+        System.out.println("\n=== INVENTORY ENTRIES ===");
+        for (Purchase purchase : entries) {
+            System.out.println("\n----------------------------");
+            System.out.println("Entry ID: " + purchase.getPurchaseId());
+            System.out.println("Date: " + purchase.getDate());
+            System.out.println("Product: " + purchase.getProductName());
+            System.out.println("Category: " + purchase.getCategory());
+            System.out.println("Quantity: " + purchase.getQuantity());
+            System.out.println("Supplier Unit Cost: " + formatMoney(purchase.getUnitCost()));
+            System.out.println("Batch Total Cost: " + formatMoney(purchase.getTotalCost()));
+            System.out.println("Remaining: " + purchase.getRemainingQuantity());
         }
-        double value = scanner.nextDouble();
-        scanner.nextLine();
-        return value;
+    }
+
+    private static void printSalesEntries(ArrayList<Sale> sales) {
+        System.out.println("\n=== SALES ENTRIES ===");
+        for (Sale sale : sales) {
+            System.out.println("\n----------------------------");
+            System.out.println("Sale ID: " + sale.getSaleId());
+            System.out.println("Date: " + sale.getDate());
+            System.out.println("Product: " + sale.getProductName());
+            System.out.println("Category: " + sale.getCategory());
+            System.out.println("Quantity Sold: " + sale.getQuantity());
+            System.out.println("Selling Price: " + formatMoney(sale.getUnitPrice()));
+            System.out.println("Revenue: " + formatMoney(sale.getTotalAmount()));
+            System.out.println("Cost of Goods Sold: " + formatMoney(sale.getCostOfGoodsSold()));
+            System.out.println("Profit: " + formatMoney(sale.getProfit()));
+        }
+    }
+
+    private static String selectProductType() {
+        ArrayList<String> types = ProductCatalog.getProductTypes();
+
+        if (types.isEmpty()) {
+            System.out.println("No supplier products available.");
+            return null;
+        }
+
+        System.out.println("\n=== PRODUCT TYPES ===");
+        for (int i = 0; i < types.size(); i++) {
+            System.out.println((i + 1) + ". " + types.get(i));
+        }
+
+        int choice = readInt("Choose product type: ");
+        if (choice < 1 || choice > types.size()) {
+            System.out.println("Invalid type.");
+            return null;
+        }
+
+        return types.get(choice - 1);
+    }
+
+    private static ProductCatalog.ProductTemplate selectCatalogProduct(String type) {
+        ArrayList<ProductCatalog.ProductTemplate> products = ProductCatalog.getProductsByType(type);
+
+        if (products.isEmpty()) {
+            System.out.println("No products found for that type.");
+            return null;
+        }
+
+        System.out.println("\n=== PRODUCTS ===");
+        for (int i = 0; i < products.size(); i++) {
+            ProductCatalog.ProductTemplate template = products.get(i);
+            System.out.println((i + 1) + ". " + template.getName());
+        }
+
+        int choice = readInt("Choose product: ");
+        if (choice < 1 || choice > products.size()) {
+            System.out.println("Invalid product.");
+            return null;
+        }
+
+        return products.get(choice - 1);
+    }
+
+    private static Product selectStockedProduct(ArrayList<Product> stockedProducts) {
+        System.out.println("\n=== STOCKED PRODUCTS ===");
+        for (int i = 0; i < stockedProducts.size(); i++) {
+            Product product = stockedProducts.get(i);
+            System.out.println((i + 1) + ". " + product.getName() + " | Stock: " + product.getStockQuantity());
+        }
+
+        int choice = readInt("Choose product: ");
+        if (choice < 1 || choice > stockedProducts.size()) {
+            System.out.println("Invalid product.");
+            return null;
+        }
+
+        return stockedProducts.get(choice - 1);
+    }
+
+    private static int readInt(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            try {
+                return Integer.parseInt(scanner.nextLine().trim());
+            } catch (NumberFormatException e) {
+                System.out.println("Enter a valid whole number.");
+            }
+        }
+    }
+
+    private static double readDouble(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            try {
+                return Double.parseDouble(scanner.nextLine().trim());
+            } catch (NumberFormatException e) {
+                System.out.println("Enter a valid number.");
+            }
+        }
+    }
+
+    private static int readOptionalInt(String prompt, int currentValue) {
+        while (true) {
+            System.out.print(prompt + " [current " + currentValue + "]: ");
+            String input = scanner.nextLine().trim();
+
+            if (input.isEmpty()) {
+                return currentValue;
+            }
+
+            try {
+                return Integer.parseInt(input);
+            } catch (NumberFormatException e) {
+                System.out.println("Enter a valid whole number.");
+            }
+        }
+    }
+
+    private static double readOptionalDouble(String prompt, double currentValue) {
+        while (true) {
+            System.out.print(prompt + " [current " + formatMoney(currentValue) + "]: ");
+            String input = scanner.nextLine().trim();
+
+            if (input.isEmpty()) {
+                return currentValue;
+            }
+
+            try {
+                return Double.parseDouble(input);
+            } catch (NumberFormatException e) {
+                System.out.println("Enter a valid number.");
+            }
+        }
+    }
+
+    private static String readText(String prompt) {
+        System.out.print(prompt);
+        return scanner.nextLine().trim();
+    }
+
+    private static boolean confirmYesNo(String prompt) {
+        String answer = readText(prompt).toLowerCase();
+        return answer.equals("yes") || answer.equals("y");
+    }
+
+    private static String formatMoney(double value) {
+        return String.format("R%.2f", value);
     }
 }

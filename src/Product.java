@@ -1,21 +1,26 @@
 public class Product {
     private String productId;
     private String name;
-    private String brand;
     private String category;
-    private double costPrice;
-    private double sellingPrice;
-    private int quantityInStock;
+    private String size;
+    private double retailPrice;
+    private double rewardsPrice;
+    private double goldPrice;
+    private double vipPrice;
+    private int stockQuantity;
 
-    public Product(String productId, String name, String brand, String category,
-                   double costPrice, double sellingPrice, int quantityInStock) {
+    public Product(String productId, String name, String category, String size,
+                   double retailPrice, double rewardsPrice, double goldPrice,
+                   double vipPrice, int stockQuantity) {
         this.productId = productId;
         this.name = name;
-        this.brand = brand;
         this.category = category;
-        this.costPrice = costPrice;
-        this.sellingPrice = sellingPrice;
-        this.quantityInStock = quantityInStock;
+        this.size = size;
+        this.retailPrice = Math.max(0, retailPrice);
+        this.rewardsPrice = Math.max(0, rewardsPrice);
+        this.goldPrice = Math.max(0, goldPrice);
+        this.vipPrice = Math.max(0, vipPrice);
+        this.stockQuantity = Math.max(0, stockQuantity);
     }
 
     public String getProductId() {
@@ -26,96 +31,91 @@ public class Product {
         return name;
     }
 
-    public String getBrand() {
-        return brand;
-    }
-
     public String getCategory() {
         return category;
     }
 
-    public double getCostPrice() {
-        return costPrice;
+    public String getSize() {
+        return size;
     }
 
-    public double getSellingPrice() {
-        return sellingPrice;
+    public double getRetailPrice() {
+        return retailPrice;
     }
 
-    public int getQuantityInStock() {
-        return quantityInStock;
+    public double getRewardsPrice() {
+        return rewardsPrice;
+    }
+
+    public double getGoldPrice() {
+        return goldPrice;
+    }
+
+    public double getVipPrice() {
+        return vipPrice;
+    }
+
+    public int getStockQuantity() {
+        return stockQuantity;
     }
 
     public void setName(String name) {
         this.name = name;
     }
 
-    public void setBrand(String brand) {
-        this.brand = brand;
-    }
-
     public void setCategory(String category) {
         this.category = category;
     }
 
-    public void setCostPrice(double costPrice) {
-        if (costPrice >= 0) {
-            this.costPrice = costPrice;
+    public void setSize(String size) {
+        this.size = size;
+    }
+
+    public void setRetailPrice(double retailPrice) {
+        if (retailPrice >= 0) {
+            this.retailPrice = retailPrice;
         }
     }
 
-    public void setSellingPrice(double sellingPrice) {
-        if (sellingPrice >= 0) {
-            this.sellingPrice = sellingPrice;
+    public void setRewardsPrice(double rewardsPrice) {
+        if (rewardsPrice >= 0) {
+            this.rewardsPrice = rewardsPrice;
         }
     }
 
-    public void setQuantityInStock(int quantityInStock) {
-        if (quantityInStock >= 0) {
-            this.quantityInStock = quantityInStock;
+    public void setGoldPrice(double goldPrice) {
+        if (goldPrice >= 0) {
+            this.goldPrice = goldPrice;
         }
     }
 
-    public double getProfitPerUnit() {
-        return sellingPrice - costPrice;
+    public void setVipPrice(double vipPrice) {
+        if (vipPrice >= 0) {
+            this.vipPrice = vipPrice;
+        }
     }
 
-    public boolean reduceStock(int quantitySold) {
-        if (quantitySold > 0 && quantitySold <= quantityInStock) {
-            quantityInStock -= quantitySold;
+    public void setStockQuantity(int stockQuantity) {
+        if (stockQuantity >= 0) {
+            this.stockQuantity = stockQuantity;
+        }
+    }
+
+    public void addStock(int quantity) {
+        if (quantity > 0) {
+            stockQuantity += quantity;
+        }
+    }
+
+    public boolean reduceStock(int quantity) {
+        if (quantity > 0 && quantity <= stockQuantity) {
+            stockQuantity -= quantity;
             return true;
         }
         return false;
     }
 
-    public String getType() {
-        return "GENERAL";
-    }
-
-    public String toCSV() {
-        return getType() + "," +
-                clean(productId) + "," +
-                clean(name) + "," +
-                clean(brand) + "," +
-                clean(category) + "," +
-                costPrice + "," +
-                sellingPrice + "," +
-                quantityInStock + ",,0,0";
-    }
-
-    protected String clean(String value) {
-        return value == null ? "" : value.replace(",", " ");
-    }
-
-    public void displayDetails() {
-        System.out.println("ID: " + productId);
-        System.out.println("Type: " + getType());
-        System.out.println("Name: " + name);
-        System.out.println("Brand: " + brand);
-        System.out.println("Category: " + category);
-        System.out.println("Cost Price: R" + costPrice);
-        System.out.println("Selling Price: R" + sellingPrice);
-        System.out.println("Profit Per Unit: R" + getProfitPerUnit());
-        System.out.println("Stock Quantity: " + quantityInStock);
+    public boolean isLowStock(int lowStockLevel) {
+        return stockQuantity <= lowStockLevel;
     }
 }

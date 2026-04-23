@@ -1,4 +1,6 @@
 .idea/
 out/
 *.iml
+*.class
 sales.csv
+purchases.csv
