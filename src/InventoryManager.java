@@ -1,6 +1,11 @@
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class InventoryManager {
     private static final int LOW_STOCK_LEVEL = 3;
@@ -843,5 +848,342 @@ public class InventoryManager {
 
     private String formatMoney(double value) {
         return String.format("R%.2f", value);
+    }
+
+    // ==================== ADVANCED SEARCH & FILTERING ====================
+
+    /**
+     * Search products by name (case-insensitive, partial match)
+     */
+    public ArrayList<Product> searchProductsByName(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return new ArrayList<>(products);
+        }
+        
+        String search = query.toLowerCase().trim();
+        return products.stream()
+                .filter(p -> p.getName().toLowerCase().contains(search))
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /**
+     * Search products by category (case-insensitive, partial match)
+     */
+    public ArrayList<Product> searchProductsByCategory(String category) {
+        if (category == null || category.trim().isEmpty()) {
+            return new ArrayList<>(products);
+        }
+        
+        String search = category.toLowerCase().trim();
+        return products.stream()
+                .filter(p -> p.getCategory().toLowerCase().contains(search))
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /**
+     * Filter products by stock quantity range
+     */
+    public ArrayList<Product> filterProductsByStockRange(int minStock, int maxStock) {
+        return products.stream()
+                .filter(p -> p.getStockQuantity() >= minStock && p.getStockQuantity() <= maxStock)
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /**
+     * Get products with zero stock (out of stock)
+     */
+    public ArrayList<Product> getOutOfStockProducts() {
+        return products.stream()
+                .filter(p -> p.getStockQuantity() == 0)
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /**
+     * Sort products by name alphabetically
+     */
+    public ArrayList<Product> sortProductsByName(ArrayList<Product> productList, boolean ascending) {
+        ArrayList<Product> sorted = new ArrayList<>(productList);
+        Comparator<Product> comparator = Comparator.comparing(Product::getName, String.CASE_INSENSITIVE_ORDER);
+        if (!ascending) {
+            comparator = comparator.reversed();
+        }
+        sorted.sort(comparator);
+        return sorted;
+    }
+
+    /**
+     * Sort products by stock quantity
+     */
+    public ArrayList<Product> sortProductsByStock(ArrayList<Product> productList, boolean ascending) {
+        ArrayList<Product> sorted = new ArrayList<>(productList);
+        Comparator<Product> comparator = Comparator.comparingInt(Product::getStockQuantity);
+        if (!ascending) {
+            comparator = comparator.reversed();
+        }
+        sorted.sort(comparator);
+        return sorted;
+    }
+
+    /**
+     * Sort products by retail price
+     */
+    public ArrayList<Product> sortProductsByPrice(ArrayList<Product> productList, boolean ascending) {
+        ArrayList<Product> sorted = new ArrayList<>(productList);
+        Comparator<Product> comparator = Comparator.comparingDouble(Product::getRetailPrice);
+        if (!ascending) {
+            comparator = comparator.reversed();
+        }
+        sorted.sort(comparator);
+        return sorted;
+    }
+
+    // ==================== SALES SEARCH & FILTERING ====================
+
+    /**
+     * Search sales by product name (case-insensitive, partial match)
+     */
+    public ArrayList<Sale> searchSalesByProductName(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return new ArrayList<>(sales);
+        }
+        
+        String search = query.toLowerCase().trim();
+        return sales.stream()
+                .filter(s -> s.getProductName().toLowerCase().contains(search))
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /**
+     * Filter sales by date range (inclusive)
+     * Date format: YYYY-MM-DD
+     */
+    public ArrayList<Sale> filterSalesByDateRange(String startDate, String endDate) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        LocalDate start = null;
+        LocalDate end = null;
+        
+        try {
+            if (startDate != null && !startDate.trim().isEmpty()) {
+                start = LocalDate.parse(startDate.trim(), formatter);
+            }
+            if (endDate != null && !endDate.trim().isEmpty()) {
+                end = LocalDate.parse(endDate.trim(), formatter);
+            }
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+        
+        final LocalDate finalStart = start;
+        final LocalDate finalEnd = end;
+        
+        return sales.stream()
+                .filter(s -> {
+                    LocalDate saleDate = LocalDate.parse(s.getDate().substring(0, 10));
+                    boolean afterStart = finalStart == null || !saleDate.isBefore(finalStart);
+                    boolean beforeEnd = finalEnd == null || !saleDate.isAfter(finalEnd);
+                    return afterStart && beforeEnd;
+                })
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /**
+     * Filter sales by minimum profit amount
+     */
+    public ArrayList<Sale> filterSalesByMinProfit(double minProfit) {
+        return sales.stream()
+                .filter(s -> s.getProfit() >= minProfit)
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /**
+     * Sort sales by date
+     */
+    public ArrayList<Sale> sortSalesByDate(ArrayList<Sale> saleList, boolean ascending) {
+        ArrayList<Sale> sorted = new ArrayList<>(saleList);
+        Comparator<Sale> comparator = Comparator.comparing(Sale::getDate);
+        if (!ascending) {
+            comparator = comparator.reversed();
+        }
+        sorted.sort(comparator);
+        return sorted;
+    }
+
+    /**
+     * Sort sales by profit
+     */
+    public ArrayList<Sale> sortSalesByProfit(ArrayList<Sale> saleList, boolean ascending) {
+        ArrayList<Sale> sorted = new ArrayList<>(saleList);
+        Comparator<Sale> comparator = Comparator.comparingDouble(Sale::getProfit);
+        if (!ascending) {
+            comparator = comparator.reversed();
+        }
+        sorted.sort(comparator);
+        return sorted;
+    }
+
+    // ==================== EXPORT FUNCTIONS ====================
+
+    /**
+     * Export products to CSV format
+     */
+    public String exportProductsToCsv(List<Product> productList) {
+        StringBuilder csv = new StringBuilder();
+        csv.append("Product ID,Name,Category,Size,Retail Price,Rewards Price,Gold Price,VIP Price,Stock Quantity\n");
+        
+        for (Product p : productList) {
+            csv.append(String.format("%s,%s,%s,%s,%.2f,%.2f,%.2f,%.2f,%d\n",
+                escapeCsv(p.getProductId()),
+                escapeCsv(p.getName()),
+                escapeCsv(p.getCategory()),
+                escapeCsv(p.getSize()),
+                p.getRetailPrice(),
+                p.getRewardsPrice(),
+                p.getGoldPrice(),
+                p.getVipPrice(),
+                p.getStockQuantity()
+            ));
+        }
+        
+        return csv.toString();
+    }
+
+    /**
+     * Export sales to CSV format
+     */
+    public String exportSalesToCsv(List<Sale> saleList) {
+        StringBuilder csv = new StringBuilder();
+        csv.append("Sale ID,Product ID,Product Name,Category,Quantity,Unit Price,Total Amount,Cost of Goods Sold,Profit,Date\n");
+        
+        for (Sale s : saleList) {
+            csv.append(String.format("%s,%s,%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%s\n",
+                escapeCsv(s.getSaleId()),
+                escapeCsv(s.getProductId()),
+                escapeCsv(s.getProductName()),
+                escapeCsv(s.getCategory()),
+                s.getQuantity(),
+                s.getUnitPrice(),
+                s.getTotalAmount(),
+                s.getCostOfGoodsSold(),
+                s.getProfit(),
+                escapeCsv(s.getDate())
+            ));
+        }
+        
+        return csv.toString();
+    }
+
+    /**
+     * Save CSV content to file
+     */
+    public boolean saveToFile(String content, String filename) {
+        try (java.io.FileWriter writer = new java.io.FileWriter(filename)) {
+            writer.write(content);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
+    // ==================== COMBINED SEARCH REPORTS ====================
+
+    /**
+     * Build a formatted search results report for products
+     */
+    public String buildProductSearchReport(ArrayList<Product> results, String searchCriteria) {
+        StringBuilder report = new StringBuilder();
+        report.append("\n=== PRODUCT SEARCH RESULTS ===\n");
+        report.append("Search Criteria: ").append(searchCriteria).append("\n");
+        report.append("Results Found: ").append(results.size()).append("\n");
+        
+        if (results.isEmpty()) {
+            report.append("\nNo products match your search.\n");
+            return report.toString();
+        }
+        
+        double totalStockValue = 0;
+        int totalUnits = 0;
+        
+        for (Product p : results) {
+            report.append("\n----------------------------\n");
+            report.append("Product: ").append(p.getName()).append("\n");
+            report.append("ID: ").append(p.getProductId()).append("\n");
+            report.append("Category: ").append(p.getCategory()).append("\n");
+            report.append("Size: ").append(p.getSize()).append("\n");
+            report.append("Stock: ").append(p.getStockQuantity()).append(" units\n");
+            report.append("Retail Price: ").append(formatMoney(p.getRetailPrice())).append("\n");
+            report.append("Rewards: ").append(formatMoney(p.getRewardsPrice()));
+            report.append(" | Gold: ").append(formatMoney(p.getGoldPrice()));
+            report.append(" | VIP: ").append(formatMoney(p.getVipPrice())).append("\n");
+            
+            double stockValue = p.getStockQuantity() * p.getRetailPrice();
+            totalStockValue += stockValue;
+            totalUnits += p.getStockQuantity();
+        }
+        
+        report.append("\n----------------------------\n");
+        report.append("SUMMARY\n");
+        report.append("Total Products: ").append(results.size()).append("\n");
+        report.append("Total Units: ").append(totalUnits).append("\n");
+        report.append("Total Retail Value: ").append(formatMoney(totalStockValue)).append("\n");
+        
+        return report.toString();
+    }
+
+    /**
+     * Build a formatted search results report for sales
+     */
+    public String buildSalesSearchReport(ArrayList<Sale> results, String searchCriteria) {
+        StringBuilder report = new StringBuilder();
+        report.append("\n=== SALES SEARCH RESULTS ===\n");
+        report.append("Search Criteria: ").append(searchCriteria).append("\n");
+        report.append("Results Found: ").append(results.size()).append("\n");
+        
+        if (results.isEmpty()) {
+            report.append("\nNo sales match your search.\n");
+            return report.toString();
+        }
+        
+        double totalRevenue = 0;
+        double totalCost = 0;
+        double totalProfit = 0;
+        int totalUnits = 0;
+        
+        for (Sale s : results) {
+            report.append("\n----------------------------\n");
+            report.append("Sale ID: ").append(s.getSaleId()).append("\n");
+            report.append("Date: ").append(s.getDate()).append("\n");
+            report.append("Product: ").append(s.getProductName()).append("\n");
+            report.append("Category: ").append(s.getCategory()).append("\n");
+            report.append("Quantity: ").append(s.getQuantity()).append("\n");
+            report.append("Unit Price: ").append(formatMoney(s.getUnitPrice())).append("\n");
+            report.append("Revenue: ").append(formatMoney(s.getTotalAmount())).append("\n");
+            report.append("Cost: ").append(formatMoney(s.getCostOfGoodsSold())).append("\n");
+            report.append("Profit: ").append(formatMoney(s.getProfit())).append("\n");
+            
+            totalRevenue += s.getTotalAmount();
+            totalCost += s.getCostOfGoodsSold();
+            totalProfit += s.getProfit();
+            totalUnits += s.getQuantity();
+        }
+        
+        report.append("\n----------------------------\n");
+        report.append("SUMMARY\n");
+        report.append("Total Sales: ").append(results.size()).append("\n");
+        report.append("Total Units Sold: ").append(totalUnits).append("\n");
+        report.append("Total Revenue: ").append(formatMoney(totalRevenue)).append("\n");
+        report.append("Total Cost: ").append(formatMoney(totalCost)).append("\n");
+        report.append("Total Profit: ").append(formatMoney(totalProfit)).append("\n");
+        
+        return report.toString();
     }
 }

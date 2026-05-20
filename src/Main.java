@@ -25,7 +25,8 @@ public class Main {
                 case 9 -> deleteSaleEntry();
                 case 10 -> viewReportsMenu();
                 case 11 -> clearInventoryData();
-                case 12 -> {
+                case 12 -> searchAndFilterMenu();
+                case 13 -> {
                     inventoryManager.saveData();
                     System.out.println("Exiting system...");
                 }
@@ -47,7 +48,8 @@ public class Main {
         System.out.println("9. Delete Sale Entry");
         System.out.println("10. View Reports");
         System.out.println("11. Clear Inventory Data");
-        System.out.println("12. Exit");
+        System.out.println("12. Search & Filter");
+        System.out.println("13. Exit");
     }
 
     private static void recordInventory() {
@@ -336,6 +338,233 @@ public class Main {
 
         inventoryManager.clearRecordedData();
         System.out.println("All recorded inventory and sales data have been cleared.");
+    }
+
+    private static void searchAndFilterMenu() {
+        while (true) {
+            System.out.println("\n=== SEARCH & FILTER ===");
+            System.out.println("1. Search Products by Name");
+            System.out.println("2. Search Products by Category");
+            System.out.println("3. Filter Products by Stock Range");
+            System.out.println("4. View Out of Stock Products");
+            System.out.println("5. Search Sales by Product Name");
+            System.out.println("6. Filter Sales by Date Range");
+            System.out.println("7. Filter Sales by Minimum Profit");
+            System.out.println("8. Back to Main Menu");
+
+            int choice = readInt("Choose an option: ");
+
+            switch (choice) {
+                case 1 -> searchProductsByName();
+                case 2 -> searchProductsByCategory();
+                case 3 -> filterProductsByStockRange();
+                case 4 -> viewOutOfStockProducts();
+                case 5 -> searchSalesByProductName();
+                case 6 -> filterSalesByDateRange();
+                case 7 -> filterSalesByMinProfit();
+                case 8 -> { return; }
+                default -> System.out.println("Invalid option.");
+            }
+        }
+    }
+
+    private static void searchProductsByName() {
+        String query = readText("Enter product name to search: ");
+        ArrayList<Product> results = inventoryManager.searchProductsByName(query);
+        
+        if (results.isEmpty()) {
+            System.out.println("No products found matching '" + query + "'.");
+            return;
+        }
+        
+        results = sortProductsMenu(results);
+        System.out.println(inventoryManager.buildProductSearchReport(results, "Name contains: '" + query + "'"));
+        
+        if (confirmYesNo("Export results to CSV? (yes/no): ")) {
+            String filename = readText("Enter filename (e.g., search_results.csv): ");
+            String csv = inventoryManager.exportProductsToCsv(results);
+            if (inventoryManager.saveToFile(csv, filename)) {
+                System.out.println("Results exported to " + filename);
+            } else {
+                System.out.println("Failed to export results.");
+            }
+        }
+    }
+
+    private static void searchProductsByCategory() {
+        String category = readText("Enter category to search: ");
+        ArrayList<Product> results = inventoryManager.searchProductsByCategory(category);
+        
+        if (results.isEmpty()) {
+            System.out.println("No products found in category '" + category + "'.");
+            return;
+        }
+        
+        results = sortProductsMenu(results);
+        System.out.println(inventoryManager.buildProductSearchReport(results, "Category contains: '" + category + "'"));
+        
+        offerExport(results, true);
+    }
+
+    private static void filterProductsByStockRange() {
+        int minStock = readInt("Enter minimum stock quantity: ");
+        int maxStock = readInt("Enter maximum stock quantity: ");
+        
+        if (minStock > maxStock) {
+            System.out.println("Minimum stock cannot be greater than maximum stock.");
+            return;
+        }
+        
+        ArrayList<Product> results = inventoryManager.filterProductsByStockRange(minStock, maxStock);
+        
+        if (results.isEmpty()) {
+            System.out.println("No products found with stock between " + minStock + " and " + maxStock + ".");
+            return;
+        }
+        
+        results = sortProductsMenu(results);
+        System.out.println(inventoryManager.buildProductSearchReport(results, 
+            "Stock range: " + minStock + " to " + maxStock));
+        
+        offerExport(results, true);
+    }
+
+    private static void viewOutOfStockProducts() {
+        ArrayList<Product> results = inventoryManager.getOutOfStockProducts();
+        
+        if (results.isEmpty()) {
+            System.out.println("No out of stock products found.");
+            return;
+        }
+        
+        results = sortProductsMenu(results);
+        System.out.println(inventoryManager.buildProductSearchReport(results, "Out of Stock"));
+        offerExport(results, true);
+    }
+
+    private static void searchSalesByProductName() {
+        String query = readText("Enter product name to search: ");
+        ArrayList<Sale> results = inventoryManager.searchSalesByProductName(query);
+        
+        if (results.isEmpty()) {
+            System.out.println("No sales found for product '" + query + "'.");
+            return;
+        }
+        
+        results = sortSalesMenu(results);
+        System.out.println(inventoryManager.buildSalesSearchReport(results, 
+            "Product name contains: '" + query + "'"));
+        
+        offerExport(results, false);
+    }
+
+    private static void filterSalesByDateRange() {
+        System.out.println("Enter dates in format YYYY-MM-DD (leave blank for no limit)");
+        String startDate = readText("Start date: ");
+        String endDate = readText("End date: ");
+        
+        ArrayList<Sale> results = inventoryManager.filterSalesByDateRange(startDate, endDate);
+        
+        if (results.isEmpty()) {
+            System.out.println("No sales found in the specified date range.");
+            return;
+        }
+        
+        results = sortSalesMenu(results);
+        String criteria = "Date range: " + 
+            (startDate.isEmpty() ? "Any" : startDate) + " to " + 
+            (endDate.isEmpty() ? "Any" : endDate);
+        System.out.println(inventoryManager.buildSalesSearchReport(results, criteria));
+        
+        offerExport(results, false);
+    }
+
+    private static void filterSalesByMinProfit() {
+        double minProfit = readDouble("Enter minimum profit amount: R");
+        
+        ArrayList<Sale> results = inventoryManager.filterSalesByMinProfit(minProfit);
+        
+        if (results.isEmpty()) {
+            System.out.println("No sales found with profit >= R" + String.format("%.2f", minProfit));
+            return;
+        }
+        
+        results = sortSalesMenu(results);
+        System.out.println(inventoryManager.buildSalesSearchReport(results, 
+            "Minimum profit: R" + String.format("%.2f", minProfit)));
+        
+        offerExport(results, false);
+    }
+
+    private static ArrayList<Product> sortProductsMenu(ArrayList<Product> products) {
+        if (products.size() <= 1) {
+            return products;
+        }
+        
+        System.out.println("\nSort by:");
+        System.out.println("1. Name (A-Z)");
+        System.out.println("2. Name (Z-A)");
+        System.out.println("3. Stock (Low-High)");
+        System.out.println("4. Stock (High-Low)");
+        System.out.println("5. Price (Low-High)");
+        System.out.println("6. Price (High-Low)");
+        System.out.println("7. No sorting");
+        
+        int choice = readInt("Choose: ");
+        
+        return switch (choice) {
+            case 1 -> inventoryManager.sortProductsByName(products, true);
+            case 2 -> inventoryManager.sortProductsByName(products, false);
+            case 3 -> inventoryManager.sortProductsByStock(products, true);
+            case 4 -> inventoryManager.sortProductsByStock(products, false);
+            case 5 -> inventoryManager.sortProductsByPrice(products, true);
+            case 6 -> inventoryManager.sortProductsByPrice(products, false);
+            default -> products;
+        };
+    }
+
+    private static ArrayList<Sale> sortSalesMenu(ArrayList<Sale> sales) {
+        if (sales.size() <= 1) {
+            return sales;
+        }
+        
+        System.out.println("\nSort by:");
+        System.out.println("1. Date (Oldest first)");
+        System.out.println("2. Date (Newest first)");
+        System.out.println("3. Profit (Low-High)");
+        System.out.println("4. Profit (High-Low)");
+        System.out.println("5. No sorting");
+        
+        int choice = readInt("Choose: ");
+        
+        return switch (choice) {
+            case 1 -> inventoryManager.sortSalesByDate(sales, true);
+            case 2 -> inventoryManager.sortSalesByDate(sales, false);
+            case 3 -> inventoryManager.sortSalesByProfit(sales, true);
+            case 4 -> inventoryManager.sortSalesByProfit(sales, false);
+            default -> sales;
+        };
+    }
+
+    private static void offerExport(ArrayList<?> results, boolean isProducts) {
+        if (confirmYesNo("Export results to CSV? (yes/no): ")) {
+            String filename = readText("Enter filename (e.g., search_results.csv): ");
+            String csv;
+            if (isProducts) {
+                @SuppressWarnings("unchecked")
+                ArrayList<Product> products = (ArrayList<Product>) results;
+                csv = inventoryManager.exportProductsToCsv(products);
+            } else {
+                @SuppressWarnings("unchecked")
+                ArrayList<Sale> sales = (ArrayList<Sale>) results;
+                csv = inventoryManager.exportSalesToCsv(sales);
+            }
+            if (inventoryManager.saveToFile(csv, filename)) {
+                System.out.println("Results exported to " + filename);
+            } else {
+                System.out.println("Failed to export results.");
+            }
+        }
     }
 
     private static void printInventoryEntries(ArrayList<Purchase> entries) {
