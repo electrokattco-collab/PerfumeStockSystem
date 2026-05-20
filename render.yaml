@@ -16,12 +16,12 @@ services:
         value: https://perfume-stock-frontend.onrender.com
 
   # Frontend Static Site
-  - type: static
+  - type: web
     name: perfume-stock-frontend
     env: static
-    rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
+    rootDir: frontend
     envVars:
       - key: VITE_API_URL
         value: https://perfume-stock-backend.onrender.com
