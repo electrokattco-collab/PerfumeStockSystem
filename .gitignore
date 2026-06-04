@@ -5,3 +5,7 @@ out/
 sales.csv
 purchases.csv
 .env
+node_modules/
+dist/
+target/
+.dev-logs/

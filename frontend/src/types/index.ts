@@ -19,6 +19,7 @@ export interface Product {
   vipPrice: number;
   stockQuantity: number;
   lowStockThreshold: number;
+  isLowStock: boolean;
   createdAt: string;
   updatedAt: string;
 }
