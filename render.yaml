@@ -12,10 +12,6 @@ services:
         value: perfumestock
       - key: POSTGRES_PASSWORD
         generateValue: true
-    disk:
-      name: postgres-data
-      mountPath: /var/lib/postgresql/data
-      sizeGB: 1
 
   # Backend Web Service
   - type: web
