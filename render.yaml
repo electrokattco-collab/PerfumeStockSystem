@@ -1,18 +1,4 @@
 services:
-  # PostgreSQL Database (Private Service)
-  - type: pserv
-    name: perfume-stock-db
-    env: docker
-    image:
-      url: postgres:16-alpine
-    envVars:
-      - key: POSTGRES_DB
-        value: perfumestock
-      - key: POSTGRES_USER
-        value: perfumestock
-      - key: POSTGRES_PASSWORD
-        generateValue: true
-
   # Backend Web Service
   - type: web
     name: perfume-stock-backend
@@ -20,15 +6,7 @@ services:
     rootDir: backend
     dockerfilePath: ./Dockerfile
     envVars:
-      - key: DB_HOST
-        value: perfume-stock-db
-      - key: DB_PORT
-        value: 5432
-      - key: DB_NAME
-        value: perfumestock
-      - key: DB_USER
-        value: perfumestock
-      - key: DB_PASSWORD
+      - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
         sync: false
