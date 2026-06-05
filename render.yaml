@@ -1,5 +1,5 @@
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database (Private Service)
   - type: pserv
     name: perfume-stock-db
     env: docker
@@ -25,10 +25,7 @@ services:
     dockerfilePath: ./Dockerfile
     envVars:
       - key: DB_HOST
-        fromService:
-          type: pserv
-          name: perfume-stock-db
-          property: host
+        value: perfume-stock-db
       - key: DB_PORT
         value: 5432
       - key: DB_NAME
@@ -36,11 +33,7 @@ services:
       - key: DB_USER
         value: perfumestock
       - key: DB_PASSWORD
-        fromService:
-          type: pserv
-          name: perfume-stock-db
-          property: envVar
-          envVarKey: POSTGRES_PASSWORD
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: JWT_EXPIRATION
