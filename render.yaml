@@ -1,7 +1,7 @@
 services:
   # Backend Web Service
   - type: web
-    name: perfume-stock-backend
+    name: inventory
     env: docker
     rootDir: backend
     dockerfilePath: ./Dockerfile
@@ -13,15 +13,15 @@ services:
       - key: JWT_EXPIRATION
         value: 86400000
       - key: CORS_ORIGINS
-        value: https://perfume-stock-frontend.onrender.com
+        value: https://stockentry.onrender.com
 
   # Frontend Static Site
   - type: web
-    name: perfume-stock-frontend
+    name: stockentry
     env: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     rootDir: frontend
     envVars:
       - key: VITE_API_URL
-        value: https://perfume-stock-backend.onrender.com/api
+        value: https://inventory.onrender.com/api
