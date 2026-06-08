@@ -58,11 +58,13 @@ export interface LoginRequest {
   password: string;
 }
 
+/**
+ * Login response no longer contains the JWT token.
+ * The token is now set as an httpOnly cookie by the backend.
+ */
 export interface LoginResponse {
-  token: string;
-  type: string;
   id: number;
   username: string;
   email: string;
-  role: string;
+  role: 'ADMIN' | 'MANAGER' | 'SALES_REP';
 }

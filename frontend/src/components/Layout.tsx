@@ -8,17 +8,34 @@ import {
   History, 
   BarChart3, 
   Users, 
-  LogOut 
+  LogOut,
+  Loader2
 } from 'lucide-react';
+import { useState } from 'react';
 
 export default function Layout() {
-  const { user, logout, hasRole } = useAuth();
+  const { user, logout, hasRole, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
+      navigate('/login');
+    }
   };
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -65,9 +82,18 @@ export default function Layout() {
               <p className="text-sm font-medium">{user?.username}</p>
               <p className="text-xs text-muted-foreground capitalize">{user?.role.toLowerCase().replace('_', ' ')}</p>
             </div>
-            <Button variant="outline" className="w-full" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LogOut className="mr-2 h-4 w-4" />
+              )}
+              {isLoggingOut ? 'Logging out...' : 'Logout'}
             </Button>
           </div>
         </div>

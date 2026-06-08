@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => ({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        // Credentials must be included for cookies to work through proxy
+        // Note: The backend must allow the vite dev server origin in CORS
       },
     },
   },

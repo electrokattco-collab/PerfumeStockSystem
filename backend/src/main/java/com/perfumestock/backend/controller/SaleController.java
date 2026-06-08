@@ -20,7 +20,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/sales")
-@CrossOrigin(origins = "*", maxAge = 3600)
 public class SaleController {
 
     private final SaleService saleService;

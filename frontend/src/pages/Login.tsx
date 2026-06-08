@@ -23,7 +23,18 @@ export default function Login() {
 
     try {
       const response = await authApi.login({ username, password });
-      login(response.data);
+      
+      // The JWT token is now stored in an httpOnly cookie by the backend
+      // We only need to set the user state with the returned user info
+      login({
+        id: response.data.id,
+        username: response.data.username,
+        email: response.data.email,
+        role: response.data.role,
+        active: true,
+        createdAt: '',
+      });
+      
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed. Please try again.');

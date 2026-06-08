@@ -2,6 +2,7 @@ package com.perfumestock.backend.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,9 +53,27 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * Extracts JWT from the "jwt" httpOnly cookie (new secure method).
+     * Falls back to Authorization header for backward compatibility during migration.
+     */
     private String parseJwt(HttpServletRequest request) {
-        String headerAuth = request.getHeader("Authorization");
+        // First, try to get JWT from httpOnly cookie (secure method)
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("jwt".equals(cookie.getName())) {
+                    String jwt = cookie.getValue();
+                    if (StringUtils.hasText(jwt)) {
+                        return jwt;
+                    }
+                }
+            }
+        }
 
+        // Fallback: try to get JWT from Authorization header (legacy method)
+        // This can be removed once all clients are migrated to cookie-based auth
+        String headerAuth = request.getHeader("Authorization");
         if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
             return headerAuth.substring(7);
         }

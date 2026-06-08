@@ -2,37 +2,22 @@ package com.perfumestock.backend.dto;
 
 import com.perfumestock.backend.entity.User;
 
+/**
+ * Response containing user information after successful authentication.
+ * Note: The JWT token is now set as an httpOnly cookie and not returned in the response body.
+ */
 public class JwtResponse {
     
-    private String token;
-    private String type = "Bearer";
     private Long id;
     private String username;
     private String email;
     private User.Role role;
     
-    public JwtResponse(String token, Long id, String username, String email, User.Role role) {
-        this.token = token;
+    public JwtResponse(Long id, String username, String email, User.Role role) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.role = role;
-    }
-    
-    public String getToken() {
-        return token;
-    }
-    
-    public void setToken(String token) {
-        this.token = token;
-    }
-    
-    public String getType() {
-        return type;
-    }
-    
-    public void setType(String type) {
-        this.type = type;
     }
     
     public Long getId() {
