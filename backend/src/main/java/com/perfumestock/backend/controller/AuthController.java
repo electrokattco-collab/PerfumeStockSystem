@@ -9,10 +9,8 @@ import com.perfumestock.backend.security.JwtUtils;
 import com.perfumestock.backend.security.UserDetailsImpl;
 import com.perfumestock.backend.service.UserService;
 import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,15 +18,15 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Authentication controller handling login, logout, and user session.
- * CORS is configured globally in WebSecurityConfig - do not add @CrossOrigin here
- * as it can conflict with credentials support.
+ * Authentication controller handling login, logout, user session, and registration.
  */
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "Login, logout, and session management")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -38,8 +36,7 @@ public class AuthController {
     @Value("${jwt.expiration:86400000}")
     private int jwtExpirationMs;
 
-    @Autowired
-    public AuthController(AuthenticationManager authenticationManager, 
+    public AuthController(AuthenticationManager authenticationManager,
                           JwtUtils jwtUtils,
                           UserService userService) {
         this.authenticationManager = authenticationManager;
@@ -49,10 +46,9 @@ public class AuthController {
 
     /**
      * Authenticates user and sets JWT as an httpOnly cookie.
-     * The token is no longer returned in the response body for security.
      */
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest, 
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest,
                                                HttpServletResponse response) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -63,19 +59,17 @@ public class AuthController {
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtils.generateJwtToken(authentication);
-        
-        // Set JWT as httpOnly cookie
+
         Cookie jwtCookie = new Cookie("jwt", jwt);
         jwtCookie.setHttpOnly(true);
-        jwtCookie.setSecure(true); // Requires HTTPS
+        jwtCookie.setSecure(true);
         jwtCookie.setPath("/");
-        jwtCookie.setMaxAge(jwtExpirationMs / 1000); // Convert ms to seconds
-        jwtCookie.setAttribute("SameSite", "Strict");
+        jwtCookie.setMaxAge(jwtExpirationMs / 1000);
+        jwtCookie.setAttribute("SameSite", "Lax");
         response.addCookie(jwtCookie);
-        
+
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-        // Return user info without token
         return ResponseEntity.ok(new JwtResponse(
                 userDetails.getId(),
                 userDetails.getUsername(),
@@ -89,13 +83,12 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public ResponseEntity<?> logoutUser(HttpServletResponse response) {
-        // Clear the JWT cookie
         Cookie jwtCookie = new Cookie("jwt", null);
         jwtCookie.setHttpOnly(true);
         jwtCookie.setSecure(true);
         jwtCookie.setPath("/");
-        jwtCookie.setMaxAge(0); // Delete cookie
-        jwtCookie.setAttribute("SameSite", "Strict");
+        jwtCookie.setMaxAge(0);
+        jwtCookie.setAttribute("SameSite", "Lax");
         response.addCookie(jwtCookie);
 
         return ResponseEntity.ok(new MessageResponse("Logged out successfully"));
@@ -103,11 +96,10 @@ public class AuthController {
 
     /**
      * Returns the currently authenticated user's information.
-     * Used by frontend to verify session on app initialization.
      */
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
             return ResponseEntity.status(401).body(new MessageResponse("Not authenticated"));
         }
 
@@ -120,14 +112,13 @@ public class AuthController {
         ));
     }
 
+    /**
+     * Creates a new user. Admin only.
+     */
     @PostMapping("/register")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserRequest userRequest) {
-        try {
-            User user = userService.createUser(userRequest);
-            return ResponseEntity.ok(new MessageResponse("User registered successfully: " + user.getUsername()));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(new MessageResponse(e.getMessage()));
-        }
+        User user = userService.createUser(userRequest);
+        return ResponseEntity.ok(new MessageResponse("User registered successfully: " + user.getUsername()));
     }
 }

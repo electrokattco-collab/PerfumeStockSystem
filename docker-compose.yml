@@ -32,9 +32,9 @@ services:
       DB_NAME: ${DB_NAME:-perfumestock}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-defaultsecretkeythatshouldbechangedinproduction12345}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:80}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
     ports:
       - "8080:8080"
 

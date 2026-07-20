@@ -1,48 +1,36 @@
 package com.perfumestock.backend.dto;
 
-import com.perfumestock.backend.entity.Sale;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SaleRequest {
-    
-    @NotBlank
-    private String productId;
-    
-    @NotNull
-    @Min(1)
+    private String productName;
     private Integer quantity;
-    
-    @NotNull
-    private Sale.CustomerTier customerTier;
-    
-    public SaleRequest() {
-    }
-    
-    // Getters and Setters
-    
-    public String getProductId() {
-        return productId;
-    }
-    
-    public void setProductId(String productId) {
-        this.productId = productId;
-    }
-    
-    public Integer getQuantity() {
-        return quantity;
-    }
-    
-    public void setQuantity(Integer quantity) {
-        this.quantity = quantity;
-    }
-    
-    public Sale.CustomerTier getCustomerTier() {
-        return customerTier;
-    }
-    
-    public void setCustomerTier(Sale.CustomerTier customerTier) {
-        this.customerTier = customerTier;
-    }
+    private BigDecimal unitPrice;
+    private String productId;
+    private String customerName;
+    private String customerPhone;
+    private Boolean paid = false;
+    @Valid
+    private List<SaleItemRequest> items = new ArrayList<>();
+
+    public SaleRequest() {}
+    public String getProductName() { return productName; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    public BigDecimal getUnitPrice() { return unitPrice; }
+    public void setUnitPrice(BigDecimal unitPrice) { this.unitPrice = unitPrice; }
+    public String getProductId() { return productId; }
+    public void setProductId(String productId) { this.productId = productId; }
+    public String getCustomerName() { return customerName; }
+    public void setCustomerName(String customerName) { this.customerName = customerName; }
+    public String getCustomerPhone() { return customerPhone; }
+    public void setCustomerPhone(String customerPhone) { this.customerPhone = customerPhone; }
+    public Boolean getPaid() { return paid; }
+    public void setPaid(Boolean paid) { this.paid = paid; }
+    public List<SaleItemRequest> getItems() { return items; }
+    public void setItems(List<SaleItemRequest> items) { this.items = items; }
 }

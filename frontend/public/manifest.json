@@ -1,0 +1,42 @@
+{
+  "name": "Perfume Stock Management",
+  "short_name": "PerfumeStock",
+  "description": "Manage your perfume inventory, sales, and business analytics",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ec4899",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/",
+      "description": "View business overview"
+    },
+    {
+      "name": "Record Sale",
+      "short_name": "Sale",
+      "url": "/record-sale",
+      "description": "Record a new sale"
+    },
+    {
+      "name": "Inventory",
+      "short_name": "Inventory",
+      "url": "/inventory",
+      "description": "Manage products"
+    }
+  ]
+}

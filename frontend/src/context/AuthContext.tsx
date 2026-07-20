@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { User } from '@/types';
 import api from '@/services/api';
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -11,46 +11,30 @@ interface AuthContextType {
   hasRole: (role: string) => boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check authentication status on app initialization
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Try to get current user from the /api/auth/me endpoint
-        // The JWT cookie will be automatically sent with the request
-        const response = await api.get('/auth/me');
-        if (response.status === 200) {
-          setUser(response.data);
-        }
-      } catch (error) {
-        // User is not authenticated or session expired
+        const response = await api.get<User>('/auth/me');
+        setUser(response.data);
+      } catch {
         setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
-
     checkAuth();
   }, []);
 
-  /**
-   * Called after successful login. Sets the user state.
-   * Note: The JWT token is stored in an httpOnly cookie by the backend,
-   * so we don't need to store it locally.
-   */
   const login = (userData: User) => {
     setUser(userData);
   };
 
-  /**
-   * Logs out the user by calling the backend logout endpoint.
-   * The backend clears the httpOnly cookie.
-   */
   const logout = async () => {
     try {
       await api.post('/auth/logout');

@@ -1,5 +1,6 @@
 package com.perfumestock.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -24,6 +25,7 @@ public class Purchase {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
+    @JsonIgnoreProperties({"sales", "purchases"})
     private Product product;
 
     @NotBlank

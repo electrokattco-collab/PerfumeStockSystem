@@ -2,7 +2,6 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
   resolve: {
@@ -16,16 +15,21 @@ export default defineConfig(({ mode }) => ({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-        // Credentials must be included for cookies to work through proxy
-        // Note: The backend must allow the vite dev server origin in CORS
       },
     },
   },
   build: {
     outDir: 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-toast'],
+        },
+      },
+    },
   },
   define: {
-    // Inject the API URL for production builds
     __API_URL__: JSON.stringify(mode === 'production' 
       ? process.env.VITE_API_URL 
       : ''),

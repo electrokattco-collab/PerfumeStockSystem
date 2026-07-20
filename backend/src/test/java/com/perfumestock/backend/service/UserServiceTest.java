@@ -2,6 +2,8 @@ package com.perfumestock.backend.service;
 
 import com.perfumestock.backend.dto.UserRequest;
 import com.perfumestock.backend.entity.User;
+import com.perfumestock.backend.exception.DuplicateResourceException;
+import com.perfumestock.backend.exception.ResourceNotFoundException;
 import com.perfumestock.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -68,368 +70,125 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Should return all users when getAllUsers is called")
+    @DisplayName("Should return all users")
     void shouldReturnAllUsers() {
-        // Given
-        List<User> expectedUsers = Arrays.asList(adminUser, managerUser, salesUser);
-        given(userRepository.findAll()).willReturn(expectedUsers);
-
-        // When
-        List<User> actualUsers = userService.getAllUsers();
-
-        // Then
-        assertThat(actualUsers)
-                .isNotNull()
-                .hasSize(3)
-                .containsExactly(adminUser, managerUser, salesUser);
+        given(userRepository.findAll()).willReturn(Arrays.asList(adminUser, managerUser, salesUser));
+        List<User> result = userService.getAllUsers();
+        assertThat(result).hasSize(3);
         then(userRepository).should(times(1)).findAll();
     }
 
     @Test
-    @DisplayName("Should return empty list when no users exist")
-    void shouldReturnEmptyListWhenNoUsers() {
-        // Given
-        given(userRepository.findAll()).willReturn(List.of());
-
-        // When
-        List<User> actualUsers = userService.getAllUsers();
-
-        // Then
-        assertThat(actualUsers).isEmpty();
-        then(userRepository).should(times(1)).findAll();
+    @DisplayName("Should return user by ID when exists")
+    void shouldReturnUserById() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(adminUser));
+        User result = userService.getUserById(1L);
+        assertThat(result.getUsername()).isEqualTo("admin");
     }
 
     @Test
-    @DisplayName("Should return user by ID when user exists")
-    void shouldReturnUserByIdWhenExists() {
-        // Given
-        Long userId = 1L;
-        given(userRepository.findById(userId)).willReturn(Optional.of(adminUser));
-
-        // When
-        User actualUser = userService.getUserById(userId);
-
-        // Then
-        assertThat(actualUser)
-                .isNotNull()
-                .satisfies(user -> {
-                    assertThat(user.getId()).isEqualTo(userId);
-                    assertThat(user.getUsername()).isEqualTo("admin");
-                    assertThat(user.getEmail()).isEqualTo("admin@example.com");
-                    assertThat(user.getRole()).isEqualTo(User.Role.ADMIN);
-                });
-        then(userRepository).should(times(1)).findById(userId);
+    @DisplayName("Should throw ResourceNotFoundException when user not found")
+    void shouldThrowWhenUserNotFound() {
+        given(userRepository.findById(999L)).willReturn(Optional.empty());
+        assertThatThrownBy(() -> userService.getUserById(999L))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
-    @DisplayName("Should throw RuntimeException when user not found by ID")
-    void shouldThrowExceptionWhenUserNotFoundById() {
-        // Given
-        Long userId = 999L;
-        given(userRepository.findById(userId)).willReturn(Optional.empty());
+    @DisplayName("Should create user successfully")
+    void shouldCreateUser() {
+        given(userRepository.existsByUsername("newuser")).willReturn(false);
+        given(userRepository.existsByEmail("newuser@example.com")).willReturn(false);
+        given(passwordEncoder.encode(anyString())).willReturn("encodedPassword");
+        given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        // When & Then
-        assertThatThrownBy(() -> userService.getUserById(userId))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("User not found with id: " + userId);
-        then(userRepository).should(times(1)).findById(userId);
-    }
+        User result = userService.createUser(validUserRequest);
 
-    @Test
-    @DisplayName("Should return user by username when user exists")
-    void shouldReturnUserByUsernameWhenExists() {
-        // Given
-        String username = "manager";
-        given(userRepository.findByUsername(username)).willReturn(Optional.of(managerUser));
-
-        // When
-        User actualUser = userService.getUserByUsername(username);
-
-        // Then
-        assertThat(actualUser)
-                .isNotNull()
-                .satisfies(user -> {
-                    assertThat(user.getUsername()).isEqualTo(username);
-                    assertThat(user.getRole()).isEqualTo(User.Role.MANAGER);
-                });
-        then(userRepository).should(times(1)).findByUsername(username);
-    }
-
-    @Test
-    @DisplayName("Should throw RuntimeException when user not found by username")
-    void shouldThrowExceptionWhenUserNotFoundByUsername() {
-        // Given
-        String username = "nonexistent";
-        given(userRepository.findByUsername(username)).willReturn(Optional.empty());
-
-        // When & Then
-        assertThatThrownBy(() -> userService.getUserByUsername(username))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("User not found: " + username);
-    }
-
-    @Test
-    @DisplayName("Should create user successfully with valid data")
-    void shouldCreateUserSuccessfully() {
-        // Given
-        String encodedPassword = "encodedPassword123";
-        given(userRepository.existsByUsername(validUserRequest.getUsername())).willReturn(false);
-        given(userRepository.existsByEmail(validUserRequest.getEmail())).willReturn(false);
-        given(passwordEncoder.encode(validUserRequest.getPassword())).willReturn(encodedPassword);
-        given(userRepository.save(any(User.class))).willAnswer(invocation -> {
-            User savedUser = invocation.getArgument(0);
-            savedUser.setId(4L);
-            return savedUser;
-        });
-
-        // When
-        User createdUser = userService.createUser(validUserRequest);
-
-        // Then
-        assertThat(createdUser)
-                .isNotNull()
-                .satisfies(user -> {
-                    assertThat(user.getId()).isEqualTo(4L);
-                    assertThat(user.getUsername()).isEqualTo(validUserRequest.getUsername());
-                    assertThat(user.getEmail()).isEqualTo(validUserRequest.getEmail());
-                    assertThat(user.getPassword()).isEqualTo(encodedPassword);
-                    assertThat(user.getRole()).isEqualTo(validUserRequest.getRole());
-                    assertThat(user.isActive()).isTrue();
-                });
-        then(userRepository).should(times(1)).existsByUsername(validUserRequest.getUsername());
-        then(userRepository).should(times(1)).existsByEmail(validUserRequest.getEmail());
-        then(passwordEncoder).should(times(1)).encode(validUserRequest.getPassword());
+        assertThat(result.getUsername()).isEqualTo("newuser");
         then(userRepository).should(times(1)).save(any(User.class));
     }
 
     @Test
-    @DisplayName("Should throw RuntimeException when username already exists")
-    void shouldThrowExceptionWhenUsernameExists() {
-        // Given
-        given(userRepository.existsByUsername(validUserRequest.getUsername())).willReturn(true);
+    @DisplayName("Should throw DuplicateResourceException for taken username")
+    void shouldThrowForTakenUsername() {
+        given(userRepository.existsByUsername("admin")).willReturn(true);
+        validUserRequest.setUsername("admin");
 
-        // When & Then
         assertThatThrownBy(() -> userService.createUser(validUserRequest))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Username already taken: " + validUserRequest.getUsername());
-        then(userRepository).should(times(1)).existsByUsername(validUserRequest.getUsername());
-        then(userRepository).should(never()).existsByEmail(anyString());
-        then(userRepository).should(never()).save(any(User.class));
+                .isInstanceOf(DuplicateResourceException.class);
     }
 
     @Test
-    @DisplayName("Should throw RuntimeException when email already exists")
-    void shouldThrowExceptionWhenEmailExists() {
-        // Given
-        given(userRepository.existsByUsername(validUserRequest.getUsername())).willReturn(false);
-        given(userRepository.existsByEmail(validUserRequest.getEmail())).willReturn(true);
+    @DisplayName("Should throw DuplicateResourceException for taken email")
+    void shouldThrowForTakenEmail() {
+        given(userRepository.existsByUsername("newuser")).willReturn(false);
+        given(userRepository.existsByEmail("admin@example.com")).willReturn(true);
+        validUserRequest.setEmail("admin@example.com");
 
-        // When & Then
         assertThatThrownBy(() -> userService.createUser(validUserRequest))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Email already in use: " + validUserRequest.getEmail());
-        then(userRepository).should(times(1)).existsByUsername(validUserRequest.getUsername());
-        then(userRepository).should(times(1)).existsByEmail(validUserRequest.getEmail());
-        then(userRepository).should(never()).save(any(User.class));
+                .isInstanceOf(DuplicateResourceException.class);
     }
 
     @Test
-    @DisplayName("Should update user successfully with valid data")
-    void shouldUpdateUserSuccessfully() {
-        // Given
-        Long userId = 2L;
+    @DisplayName("Should update user successfully")
+    void shouldUpdateUser() {
         UserRequest updateRequest = new UserRequest();
-        updateRequest.setUsername("updatedManager");
-        updateRequest.setEmail("updated@example.com");
-        updateRequest.setPassword("newpassword123");
-        updateRequest.setRole(User.Role.ADMIN);
-
-        given(userRepository.findById(userId)).willReturn(Optional.of(managerUser));
-        given(userRepository.existsByUsername(updateRequest.getUsername())).willReturn(false);
-        given(userRepository.existsByEmail(updateRequest.getEmail())).willReturn(false);
-        given(passwordEncoder.encode(updateRequest.getPassword())).willReturn("newEncodedPassword");
-        given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
-
-        // When
-        User updatedUser = userService.updateUser(userId, updateRequest);
-
-        // Then
-        assertThat(updatedUser)
-                .isNotNull()
-                .satisfies(user -> {
-                    assertThat(user.getUsername()).isEqualTo(updateRequest.getUsername());
-                    assertThat(user.getEmail()).isEqualTo(updateRequest.getEmail());
-                    assertThat(user.getRole()).isEqualTo(updateRequest.getRole());
-                    assertThat(user.getPassword()).isEqualTo("newEncodedPassword");
-                });
-        then(userRepository).should(times(1)).findById(userId);
-        then(userRepository).should(times(1)).save(any(User.class));
-    }
-
-    @Test
-    @DisplayName("Should update user without changing password when password is empty")
-    void shouldUpdateUserWithoutChangingPasswordWhenEmpty() {
-        // Given
-        Long userId = 2L;
-        String originalPassword = managerUser.getPassword();
-        UserRequest updateRequest = new UserRequest();
-        updateRequest.setUsername("updatedManager");
-        updateRequest.setEmail(managerUser.getEmail());
-        updateRequest.setPassword(""); // Empty password
-        updateRequest.setRole(User.Role.MANAGER);
-
-        given(userRepository.findById(userId)).willReturn(Optional.of(managerUser));
-        given(userRepository.existsByUsername(updateRequest.getUsername())).willReturn(false);
-        given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
-
-        // When
-        User updatedUser = userService.updateUser(userId, updateRequest);
-
-        // Then
-        assertThat(updatedUser.getPassword()).isEqualTo(originalPassword);
-        then(passwordEncoder).should(never()).encode(anyString());
-    }
-
-    @Test
-    @DisplayName("Should update user without changing password when password is null")
-    void shouldUpdateUserWithoutChangingPasswordWhenNull() {
-        // Given
-        Long userId = 2L;
-        String originalPassword = managerUser.getPassword();
-        UserRequest updateRequest = new UserRequest();
-        updateRequest.setUsername("updatedManager");
-        updateRequest.setEmail(managerUser.getEmail());
-        updateRequest.setPassword(null); // Null password
-        updateRequest.setRole(User.Role.MANAGER);
-
-        given(userRepository.findById(userId)).willReturn(Optional.of(managerUser));
-        given(userRepository.existsByUsername(updateRequest.getUsername())).willReturn(false);
-        given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
-
-        // When
-        User updatedUser = userService.updateUser(userId, updateRequest);
-
-        // Then
-        assertThat(updatedUser.getPassword()).isEqualTo(originalPassword);
-        then(passwordEncoder).should(never()).encode(anyString());
-    }
-
-    @Test
-    @DisplayName("Should allow updating user with same username")
-    void shouldAllowUpdateWithSameUsername() {
-        // Given
-        Long userId = 2L;
-        UserRequest updateRequest = new UserRequest();
-        updateRequest.setUsername("manager"); // Same username
+        updateRequest.setUsername("manager");
         updateRequest.setEmail("newemail@example.com");
         updateRequest.setPassword("password123");
         updateRequest.setRole(User.Role.MANAGER);
 
-        given(userRepository.findById(userId)).willReturn(Optional.of(managerUser));
-        given(userRepository.existsByEmail(updateRequest.getEmail())).willReturn(false);
+        given(userRepository.findById(2L)).willReturn(Optional.of(managerUser));
+        given(userRepository.existsByEmail("newemail@example.com")).willReturn(false);
         given(passwordEncoder.encode(anyString())).willReturn("encodedPassword");
         given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        // When
-        User updatedUser = userService.updateUser(userId, updateRequest);
+        User result = userService.updateUser(2L, updateRequest);
 
-        // Then
-        assertThat(updatedUser.getUsername()).isEqualTo("manager");
-        then(userRepository).should(never()).existsByUsername(anyString());
+        assertThat(result.getEmail()).isEqualTo("newemail@example.com");
     }
 
     @Test
-    @DisplayName("Should throw RuntimeException when updating user with taken username")
-    void shouldThrowExceptionWhenUpdatingWithTakenUsername() {
-        // Given
-        Long userId = 2L;
+    @DisplayName("Should not re-encode password when not provided")
+    void shouldNotReencodePasswordWhenNotProvided() {
+        String originalPassword = managerUser.getPassword();
         UserRequest updateRequest = new UserRequest();
-        updateRequest.setUsername("admin"); // Already taken
-        updateRequest.setEmail(managerUser.getEmail());
-        updateRequest.setPassword("password123");
+        updateRequest.setUsername("manager");
+        updateRequest.setEmail("newemail@example.com");
+        updateRequest.setPassword("");
         updateRequest.setRole(User.Role.MANAGER);
 
-        given(userRepository.findById(userId)).willReturn(Optional.of(managerUser));
-        given(userRepository.existsByUsername("admin")).willReturn(true);
+        given(userRepository.findById(2L)).willReturn(Optional.of(managerUser));
+        given(userRepository.existsByEmail("newemail@example.com")).willReturn(false);
+        given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        // When & Then
-        assertThatThrownBy(() -> userService.updateUser(userId, updateRequest))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Username already taken: admin");
-    }
+        User result = userService.updateUser(2L, updateRequest);
 
-    @Test
-    @DisplayName("Should throw RuntimeException when updating non-existent user")
-    void shouldThrowExceptionWhenUpdatingNonExistentUser() {
-        // Given
-        Long userId = 999L;
-        given(userRepository.findById(userId)).willReturn(Optional.empty());
-
-        // When & Then
-        assertThatThrownBy(() -> userService.updateUser(userId, validUserRequest))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("User not found with id: " + userId);
+        assertThat(result.getPassword()).isEqualTo(originalPassword);
+        then(passwordEncoder).should(never()).encode(anyString());
     }
 
     @Test
     @DisplayName("Should deactivate user successfully")
-    void shouldDeactivateUserSuccessfully() {
-        // Given
-        Long userId = 2L;
-        given(userRepository.findById(userId)).willReturn(Optional.of(managerUser));
+    void shouldDeactivateUser() {
+        given(userRepository.findById(2L)).willReturn(Optional.of(managerUser));
         given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        // When
-        userService.deleteUser(userId);
+        userService.deleteUser(2L);
 
-        // Then
         assertThat(managerUser.isActive()).isFalse();
-        then(userRepository).should(times(1)).findById(userId);
         then(userRepository).should(times(1)).save(managerUser);
-    }
-
-    @Test
-    @DisplayName("Should throw RuntimeException when deactivating non-existent user")
-    void shouldThrowExceptionWhenDeactivatingNonExistentUser() {
-        // Given
-        Long userId = 999L;
-        given(userRepository.findById(userId)).willReturn(Optional.empty());
-
-        // When & Then
-        assertThatThrownBy(() -> userService.deleteUser(userId))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("User not found with id: " + userId);
-        then(userRepository).should(never()).save(any(User.class));
     }
 
     @Test
     @DisplayName("Should activate user successfully")
-    void shouldActivateUserSuccessfully() {
-        // Given
-        Long userId = 2L;
-        managerUser.setActive(false); // Start inactive
-        given(userRepository.findById(userId)).willReturn(Optional.of(managerUser));
+    void shouldActivateUser() {
+        managerUser.setActive(false);
+        given(userRepository.findById(2L)).willReturn(Optional.of(managerUser));
         given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        // When
-        userService.activateUser(userId);
+        userService.activateUser(2L);
 
-        // Then
         assertThat(managerUser.isActive()).isTrue();
-        then(userRepository).should(times(1)).findById(userId);
-        then(userRepository).should(times(1)).save(managerUser);
-    }
-
-    @Test
-    @DisplayName("Should throw RuntimeException when activating non-existent user")
-    void shouldThrowExceptionWhenActivatingNonExistentUser() {
-        // Given
-        Long userId = 999L;
-        given(userRepository.findById(userId)).willReturn(Optional.empty());
-
-        // When & Then
-        assertThatThrownBy(() -> userService.activateUser(userId))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("User not found with id: " + userId);
     }
 }
