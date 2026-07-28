@@ -1,0 +1,13 @@
+package com.perfumestock.backend.entity;
+
+public enum BusinessEventType {
+    PURCHASE_RECORDED,
+    PURCHASE_CONFIRMED,
+    PURCHASE_REVERSED,
+    SALE_RECORDED,
+    SALE_REVERSED,
+    PAYMENT_RECEIVED,
+    PAYMENT_REVERSED,
+    INVENTORY_ADJUSTMENT,
+    CUSTOMER_REFUND
+}

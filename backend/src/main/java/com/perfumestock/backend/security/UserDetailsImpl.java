@@ -17,91 +17,37 @@ public class UserDetailsImpl implements UserDetails {
     private Long id;
     private String username;
     private String email;
-
     @JsonIgnore
     private String password;
-
-    private User.Role role;
     private boolean active;
-
     private Collection<? extends GrantedAuthority> authorities;
 
     public UserDetailsImpl(Long id, String username, String email, String password,
-                           User.Role role, boolean active,
-                           Collection<? extends GrantedAuthority> authorities) {
+                           boolean active, Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.password = password;
-        this.role = role;
         this.active = active;
         this.authorities = authorities;
     }
 
     public static UserDetailsImpl build(User user) {
-        GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getRole().name());
-        
-        return new UserDetailsImpl(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getPassword(),
-                user.getRole(),
-                user.isActive(),
-                Collections.singletonList(authority)
-        );
+        GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_ADMIN");
+        return new UserDetailsImpl(user.getId(), user.getUsername(), user.getEmail(),
+            user.getPassword(), user.isActive(), Collections.singletonList(authority));
     }
 
     @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return authorities;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public User.Role getRole() {
-        return role;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    @Override
-    public String getPassword() {
-        return password;
-    }
-
-    @Override
-    public String getUsername() {
-        return username;
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return active;
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return active;
-    }
+    public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
+    public Long getId() { return id; }
+    public String getEmail() { return email; }
+    @Override public String getPassword() { return password; }
+    @Override public String getUsername() { return username; }
+    @Override public boolean isAccountNonExpired() { return true; }
+    @Override public boolean isAccountNonLocked() { return active; }
+    @Override public boolean isCredentialsNonExpired() { return true; }
+    @Override public boolean isEnabled() { return active; }
 
     @Override
     public boolean equals(Object o) {
@@ -112,7 +58,5 @@ public class UserDetailsImpl implements UserDetails {
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
+    public int hashCode() { return Objects.hash(id); }
 }

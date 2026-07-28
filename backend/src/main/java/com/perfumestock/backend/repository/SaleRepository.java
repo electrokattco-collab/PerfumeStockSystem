@@ -1,54 +1,62 @@
 package com.perfumestock.backend.repository;
 
 import com.perfumestock.backend.entity.Sale;
+import com.perfumestock.backend.entity.PaymentType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-
+import java.math.BigDecimal;
+import java.util.Collection;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
-@Repository
 public interface SaleRepository extends JpaRepository<Sale, Long> {
+    Page<Sale> findAllByOrderBySaleDateDesc(Pageable pageable);
+    List<Sale> findByCustomerIdOrderBySaleDateAsc(Long customerId);
+    @EntityGraph(attributePaths = {"items", "items.product"})
+    List<Sale> findByIdIn(Collection<Long> ids);
 
-    Optional<Sale> findBySaleId(String saleId);
+    @Query("SELECT COUNT(s) FROM Sale s WHERE s.saleDate >= :start")
+    long countSince(@Param("start") LocalDateTime start);
 
-    List<Sale> findByProductNameContainingIgnoreCase(String productName);
+    @Query("SELECT COALESCE(SUM(s.totalAmount),0) FROM Sale s WHERE s.saleDate >= :start")
+    BigDecimal sumTotalSince(@Param("start") LocalDateTime start);
 
-    Page<Sale> findByProductNameContainingIgnoreCase(String productName, Pageable pageable);
+    @Query("SELECT COALESCE(SUM(s.amountPaid),0) FROM Sale s WHERE s.saleDate >= :start")
+    BigDecimal sumPaidSince(@Param("start") LocalDateTime start);
 
-    @Query("SELECT s FROM Sale s WHERE s.createdAt BETWEEN :startDate AND :endDate")
-    List<Sale> findByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+    @Query("SELECT COALESCE(SUM(s.costOfGoodsSold),0) FROM Sale s WHERE s.saleDate >= :start")
+    BigDecimal sumCostSince(@Param("start") LocalDateTime start);
 
-    @Query("SELECT s FROM Sale s WHERE s.createdAt BETWEEN :startDate AND :endDate")
-    Page<Sale> findByDateRange(@Param("startDate") LocalDateTime startDate,
-                               @Param("endDate") LocalDateTime endDate,
-                               Pageable pageable);
+    @Query("SELECT COUNT(s) FROM Sale s WHERE s.saleDate >= :start AND s.paymentType = :type")
+    long countByPaymentTypeSince(@Param("start") LocalDateTime start, @Param("type") PaymentType type);
 
-    @Query("SELECT s FROM Sale s WHERE s.createdAt >= :date")
-    List<Sale> findSince(@Param("date") LocalDateTime date);
+    @Query("SELECT COALESCE(SUM(s.totalAmount),0) FROM Sale s WHERE s.saleDate >= :start AND s.paymentType = :type")
+    BigDecimal sumTotalByPaymentTypeSince(@Param("start") LocalDateTime start, @Param("type") PaymentType type);
 
-    @Query("SELECT s FROM Sale s WHERE s.createdAt >= :date")
-    Page<Sale> findSince(@Param("date") LocalDateTime date, Pageable pageable);
+    @Query("SELECT COUNT(DISTINCT s.customer.id) FROM Sale s WHERE s.amountOwing > 0 AND s.customer IS NOT NULL AND s.saleDate < :cutoff")
+    long countOverdueCustomers(@Param("cutoff") LocalDateTime cutoff);
 
-    @Query("SELECT s FROM Sale s WHERE " +
-           "(:name IS NULL OR LOWER(s.productName) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
-           "(:customer IS NULL OR LOWER(s.customerName) LIKE LOWER(CONCAT('%', :customer, '%')))")
-    Page<Sale> search(@Param("name") String name, @Param("customer") String customer, Pageable pageable);
+    @Query("SELECT COALESCE(SUM(s.amountOwing),0) FROM Sale s WHERE s.amountOwing > 0")
+    BigDecimal totalOutstanding();
 
-    @Query("SELECT SUM(s.unitPrice * s.quantity) FROM Sale s WHERE s.createdAt >= :startOfDay")
-    Double sumTodayRevenue(@Param("startOfDay") LocalDateTime startOfDay);
+    @Query("SELECT COUNT(DISTINCT s.customer.id) FROM Sale s WHERE s.saleDate >= :start AND s.customer IS NOT NULL")
+    long countCustomersSince(@Param("start") LocalDateTime start);
 
-    @Query("SELECT COUNT(s) FROM Sale s WHERE s.createdAt >= :startOfDay")
-    Long countTodaySales(@Param("startOfDay") LocalDateTime startOfDay);
+    @Query("SELECT COUNT(DISTINCT s.customer.id) FROM Sale s WHERE s.customer IS NOT NULL")
+    long countDistinctCustomersWithSales();
 
-    @Query("SELECT SUM(s.unitPrice * s.quantity) FROM Sale s WHERE s.createdAt >= :start")
-    Double sumSince(@Param("start") LocalDateTime start);
+    @Query("SELECT COALESCE(SUM(s.totalAmount),0) FROM Sale s WHERE s.customer IS NOT NULL")
+    BigDecimal sumCustomerSalesTotal();
 
-    @Query("SELECT COUNT(s) FROM Sale s WHERE s.createdAt >= :start")
-    Long countSince(@Param("start") LocalDateTime start);
+    @Query("SELECT s FROM Sale s WHERE s.saleDate BETWEEN :start AND :end ORDER BY s.saleDate DESC")
+    Page<Sale> findByDateRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end, Pageable pageable);
+
+    List<Sale> findTop10ByOrderBySaleDateDesc();
+
+    @Query("SELECT si.product.name, SUM(si.quantity) as totalQty FROM SaleItem si GROUP BY si.product.name ORDER BY totalQty DESC")
+    List<Object[]> topSellingProducts();
 }

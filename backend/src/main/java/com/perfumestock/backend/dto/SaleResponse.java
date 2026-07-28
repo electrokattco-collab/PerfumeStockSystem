@@ -2,83 +2,80 @@ package com.perfumestock.backend.dto;
 
 import com.perfumestock.backend.entity.Sale;
 import com.perfumestock.backend.entity.SaleItem;
-
+import com.perfumestock.backend.entity.PaymentType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class SaleResponse {
     private Long id;
-    private String saleId;
-    private String productName;
-    private String category;
-    private Integer quantity;
-    private BigDecimal unitPrice;
+    private LocalDateTime saleDate;
     private BigDecimal totalAmount;
     private BigDecimal costOfGoodsSold;
-    private String customerName;
+    private BigDecimal profit;
+    private PaymentType paymentType;
+    private BigDecimal amountPaid;
     private BigDecimal amountOwing;
-    private boolean paid;
+    private Long customerId;
+    private String customerName;
     private List<SaleItemResponse> items;
-    private String recordedByUsername;
     private LocalDateTime createdAt;
 
-    public SaleResponse() {}
-
-    public static SaleResponse fromEntity(Sale sale) {
-        SaleResponse response = new SaleResponse();
-        response.id = sale.getId();
-        response.saleId = sale.getSaleId();
-        response.productName = sale.getProductName();
-        response.category = sale.getCategory();
-        response.quantity = sale.getQuantity();
-        response.unitPrice = sale.getUnitPrice();
-        response.totalAmount = sale.getTotalAmount();
-        response.costOfGoodsSold = sale.getCostOfGoodsSold();
-        response.customerName = sale.getCustomerName();
-        response.amountOwing = sale.getAmountOwing();
-        response.paid = sale.getPaid();
-        response.recordedByUsername = sale.getRecordedBy() != null
-                ? sale.getRecordedBy().getUsername() : null;
-        response.createdAt = sale.getCreatedAt();
-
-        if (sale.getItems() != null && !sale.getItems().isEmpty()) {
-            response.items = new ArrayList<>();
-            for (SaleItem item : sale.getItems()) {
-                response.items.add(SaleItemResponse.fromEntity(item));
-            }
+    public static SaleResponse from(Sale s) {
+        SaleResponse r = new SaleResponse();
+        r.id = s.getId();
+        r.saleDate = s.getSaleDate();
+        r.totalAmount = s.getTotalAmount();
+        r.costOfGoodsSold = s.getCostOfGoodsSold();
+        r.profit = s.getProfit();
+        r.paymentType = s.getPaymentType();
+        r.amountPaid = s.getAmountPaid();
+        r.amountOwing = s.getAmountOwing();
+        r.customerId = s.getCustomer() != null ? s.getCustomer().getId() : null;
+        r.customerName = s.getCustomer() != null ? s.getCustomer().getName() : null;
+        r.createdAt = s.getCreatedAt();
+        if (s.getItems() != null) {
+            r.items = s.getItems().stream().map(si -> {
+                SaleItemResponse item = new SaleItemResponse();
+                item.productId = si.getProduct().getId();
+                item.productName = si.getProduct().getName();
+                item.quantity = si.getQuantity();
+                item.unitPrice = si.getUnitPrice();
+                item.unitCost = si.getUnitCost();
+                item.lineTotal = si.getLineTotal();
+                return item;
+            }).collect(Collectors.toList());
         }
-
-        return response;
+        return r;
     }
 
     public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getSaleId() { return saleId; }
-    public void setSaleId(String saleId) { this.saleId = saleId; }
-    public String getProductName() { return productName; }
-    public void setProductName(String productName) { this.productName = productName; }
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
-    public Integer getQuantity() { return quantity; }
-    public void setQuantity(Integer quantity) { this.quantity = quantity; }
-    public BigDecimal getUnitPrice() { return unitPrice; }
-    public void setUnitPrice(BigDecimal unitPrice) { this.unitPrice = unitPrice; }
+    public LocalDateTime getSaleDate() { return saleDate; }
     public BigDecimal getTotalAmount() { return totalAmount; }
-    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
     public BigDecimal getCostOfGoodsSold() { return costOfGoodsSold; }
-    public void setCostOfGoodsSold(BigDecimal costOfGoodsSold) { this.costOfGoodsSold = costOfGoodsSold; }
-    public String getCustomerName() { return customerName; }
-    public void setCustomerName(String customerName) { this.customerName = customerName; }
+    public BigDecimal getProfit() { return profit; }
+    public PaymentType getPaymentType() { return paymentType; }
+    public BigDecimal getAmountPaid() { return amountPaid; }
     public BigDecimal getAmountOwing() { return amountOwing; }
-    public void setAmountOwing(BigDecimal amountOwing) { this.amountOwing = amountOwing; }
-    public boolean isPaid() { return paid; }
-    public void setPaid(boolean paid) { this.paid = paid; }
+    public Long getCustomerId() { return customerId; }
+    public String getCustomerName() { return customerName; }
     public List<SaleItemResponse> getItems() { return items; }
-    public void setItems(List<SaleItemResponse> items) { this.items = items; }
-    public String getRecordedByUsername() { return recordedByUsername; }
-    public void setRecordedByUsername(String recordedByUsername) { this.recordedByUsername = recordedByUsername; }
     public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public static class SaleItemResponse {
+        private Long productId;
+        private String productName;
+        private int quantity;
+        private BigDecimal unitPrice;
+        private BigDecimal unitCost;
+        private BigDecimal lineTotal;
+
+        public Long getProductId() { return productId; }
+        public String getProductName() { return productName; }
+        public int getQuantity() { return quantity; }
+        public BigDecimal getUnitPrice() { return unitPrice; }
+        public BigDecimal getUnitCost() { return unitCost; }
+        public BigDecimal getLineTotal() { return lineTotal; }
+    }
 }

@@ -17,9 +17,28 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Register service worker for PWA
+      const isLocalHost =
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1';
+
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
+          if (isLocalHost) {
+            try {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(registrations.map((registration) => registration.unregister()));
+
+              if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map((key) => caches.delete(key)));
+              }
+              console.log('Local service worker caches cleared');
+            } catch (error) {
+              console.log('Local SW cleanup failed:', error);
+            }
+            return;
+          }
+
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
               console.log('SW registered:', registration.scope);

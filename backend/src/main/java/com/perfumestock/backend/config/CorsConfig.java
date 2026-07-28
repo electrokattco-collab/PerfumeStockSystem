@@ -12,11 +12,6 @@ import org.springframework.web.filter.CorsFilter;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * CORS configuration using allowed origins from application properties.
- * Origins are read from {@code cors.allowed-origins} (comma-separated).
- * In production, only specific domains should be listed.
- */
 @Configuration
 public class CorsConfig {
 
@@ -36,6 +31,7 @@ public class CorsConfig {
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
+        config.setExposedHeaders(Arrays.asList("Set-Cookie"));
 
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);

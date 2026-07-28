@@ -1,4 +1,4 @@
-const CACHE_NAME = 'perfume-stock-v1';
+const CACHE_NAME = 'perfume-stock-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -6,7 +6,7 @@ const STATIC_ASSETS = [
   '/icons/icon.svg',
 ];
 
-const API_CACHE_NAME = 'perfume-stock-api-v1';
+const API_CACHE_NAME = 'perfume-stock-api-v2';
 const API_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Install event - cache static assets
@@ -58,6 +58,23 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           return caches.match(request);
         })
+    );
+    return;
+  }
+
+  const isNavigationRequest = request.mode === 'navigate';
+  const isAppAsset = ['script', 'style', 'document'].includes(request.destination);
+
+  // App shell assets: network first so updated bundles and index.html are picked up quickly.
+  if (isNavigationRequest || isAppAsset) {
+    event.respondWith(
+      fetch(request).then((response) => {
+        const cloned = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, cloned);
+        });
+        return response;
+      }).catch(() => caches.match(request))
     );
     return;
   }

@@ -1,155 +1,233 @@
 package com.perfumestock.backend.service;
 
-import com.perfumestock.backend.entity.Product;
-import com.perfumestock.backend.entity.Sale;
-import com.perfumestock.backend.repository.ProductRepository;
-import com.perfumestock.backend.repository.SaleRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.perfumestock.backend.entity.*;
+import com.perfumestock.backend.repository.*;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.temporal.TemporalAdjusters;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class ReportService {
 
-    private static final Logger log = LoggerFactory.getLogger(ReportService.class);
+    private final SaleRepository saleRepo;
+    private final ProductRepository productRepo;
+    private final CustomerRepository customerRepo;
+    private final PurchaseRepository purchaseRepo;
+    private final StockMovementRepository stockMovementRepo;
+    private final BusinessEventRepository eventRepo;
+    private final CustomerLedgerService customerLedgerService;
+    private final PaymentRepository paymentRepo;
 
-    private final ProductRepository productRepository;
-    private final SaleRepository saleRepository;
-
-    @Autowired
-    public ReportService(ProductRepository productRepository, SaleRepository saleRepository) {
-        this.productRepository = productRepository;
-        this.saleRepository = saleRepository;
+    public ReportService(SaleRepository saleRepo, ProductRepository productRepo,
+                         CustomerRepository customerRepo, PurchaseRepository purchaseRepo,
+                         StockMovementRepository stockMovementRepo,
+                         BusinessEventRepository eventRepo,
+                         CustomerLedgerService customerLedgerService,
+                         PaymentRepository paymentRepo) {
+        this.saleRepo = saleRepo;
+        this.productRepo = productRepo;
+        this.customerRepo = customerRepo;
+        this.purchaseRepo = purchaseRepo;
+        this.stockMovementRepo = stockMovementRepo;
+        this.eventRepo = eventRepo;
+        this.customerLedgerService = customerLedgerService;
+        this.paymentRepo = paymentRepo;
     }
 
-    public Map<String, Object> getDashboardSummary() {
-        log.debug("Generating dashboard summary");
-        Map<String, Object> summary = new HashMap<>();
-        summary.put("totalProducts", productRepository.count());
+    public Map<String, Object> dashboard() {
+        Map<String, Object> d = new LinkedHashMap<>();
 
-        List<Product> lowStock = productRepository.findLowStockProducts();
-        summary.put("lowStockCount", lowStock.size());
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime now = LocalDateTime.now();
+        List<Map<String, Object>> customerBalances = loadCustomerBalances();
+        BigDecimal todayRevenue = saleRepo.sumTotalSince(startOfDay);
+        BigDecimal todayCost = saleRepo.sumCostSince(startOfDay);
+        BigDecimal monthRevenue = saleRepo.sumTotalSince(startOfMonth);
+        BigDecimal monthCost = saleRepo.sumCostSince(startOfMonth);
+        BigDecimal cashReceivedMonth = saleRepo.sumPaidSince(startOfMonth);
+        BigDecimal cashReceivedToday = saleRepo.sumPaidSince(startOfDay);
 
-        LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
-        LocalDateTime startOfWeek = LocalDateTime.now()
-                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                .withHour(0).withMinute(0).withSecond(0);
-        LocalDateTime startOfMonth = LocalDateTime.now()
-                .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+        // Sales and profit
+        d.put("todaySalesCount", saleRepo.countSince(startOfDay));
+        d.put("todayRevenue", todayRevenue);
+        d.put("todayProfit", todayRevenue.subtract(todayCost));
 
-        Long todaySalesCount = saleRepository.countTodaySales(startOfDay);
-        summary.put("todaySalesCount", todaySalesCount != null ? todaySalesCount : 0);
+        d.put("monthSalesCount", saleRepo.countSince(startOfMonth));
+        d.put("monthRevenue", monthRevenue);
+        d.put("monthCost", monthCost);
+        d.put("monthProfit", monthRevenue.subtract(monthCost));
+        d.put("cashSalesMonth", saleRepo.sumTotalByPaymentTypeSince(startOfMonth, PaymentType.PAID));
+        d.put("creditSalesMonth", saleRepo.sumTotalByPaymentTypeSince(startOfMonth, PaymentType.CREDIT)
+            .add(saleRepo.sumTotalByPaymentTypeSince(startOfMonth, PaymentType.PARTIAL)));
 
-        Double todayRevenue = saleRepository.sumTodayRevenue(startOfDay);
-        summary.put("todayRevenue", todayRevenue != null ? todayRevenue : 0.0);
+        d.put("cashReceivedToday", cashReceivedToday);
+        d.put("cashReceivedMonth", cashReceivedMonth);
 
-        Double weekRevenue = saleRepository.sumSince(startOfWeek);
-        summary.put("weekRevenue", weekRevenue != null ? weekRevenue : 0.0);
+        BigDecimal totalOutstanding = customerBalances.stream()
+            .map(m -> (BigDecimal) m.get("balance"))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        d.put("totalOutstanding", totalOutstanding);
+        d.put("totalCustomers", customerBalances.size());
+        d.put("customersWithOutstandingBalances", customerBalances.stream()
+            .filter(m -> ((BigDecimal) m.get("balance")).compareTo(BigDecimal.ZERO) > 0)
+            .count());
+        d.put("largestDebtor", customerBalances.stream()
+            .filter(m -> ((BigDecimal) m.get("balance")).compareTo(BigDecimal.ZERO) > 0)
+            .max(Comparator.comparing(m -> (BigDecimal) m.get("balance")))
+            .orElse(null));
 
-        Long weekSalesCount = saleRepository.countSince(startOfWeek);
-        summary.put("weekSalesCount", weekSalesCount != null ? weekSalesCount : 0);
+        List<Product> allProducts = productRepo.findByActiveTrue(org.springframework.data.domain.PageRequest.of(0, 10000)).getContent();
+        BigDecimal inventoryValue = allProducts.stream()
+            .map(p -> p.getBuyPrice().multiply(BigDecimal.valueOf(p.getStockQuantity())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long lowStockCount = allProducts.stream().filter(Product::isLowStock).count();
+        d.put("totalProducts", allProducts.size());
+        d.put("inventoryValue", inventoryValue);
+        d.put("lowStockCount", lowStockCount);
 
-        Double monthRevenue = saleRepository.sumSince(startOfMonth);
-        summary.put("monthRevenue", monthRevenue != null ? monthRevenue : 0.0);
+        d.put("totalDebtors", (long) customerBalances.stream()
+            .filter(m -> ((BigDecimal) m.get("balance")).compareTo(BigDecimal.ZERO) > 0)
+            .count());
+        d.put("overdueAccounts", saleRepo.countOverdueCustomers(now.minusDays(30)));
+        d.put("customersPaidThisMonth", paymentRepo.findByCreatedAtGreaterThanEqual(startOfMonth).stream()
+            .map(p -> p.getCustomer().getId())
+            .distinct()
+            .count());
 
-        Long monthSalesCount = saleRepository.countSince(startOfMonth);
-        summary.put("monthSalesCount", monthSalesCount != null ? monthSalesCount : 0);
+        BigDecimal totalCustomerSales = saleRepo.sumCustomerSalesTotal();
+        long customersWithSales = saleRepo.countDistinctCustomersWithSales();
+        d.put("averageCustomerPurchaseValue", customersWithSales > 0
+            ? totalCustomerSales.divide(BigDecimal.valueOf(customersWithSales), 2, java.math.RoundingMode.HALF_UP)
+            : BigDecimal.ZERO);
 
-        // Stock value - use efficient query
-        List<Product> products = productRepository.findAll();
-        BigDecimal totalStockValue = products.stream()
-                .map(p -> p.getSellPrice().multiply(BigDecimal.valueOf(p.getStockQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        summary.put("totalStockValue", totalStockValue);
+        // Purchases
+        d.put("monthPurchasesCount", purchaseRepo.countByStatusAndPurchaseDateBetween(PurchaseStatus.CONFIRMED, startOfMonth, now));
+        d.put("monthPurchasesSpent", purchaseRepo.sumTotalByStatusBetween(PurchaseStatus.CONFIRMED, startOfMonth, now));
+        d.put("pendingPurchaseConfirmations", purchaseRepo.countByStatus(PurchaseStatus.PENDING_REVIEW));
 
-        // Best selling - use recent sales only (last 30 days) instead of all time
-        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-        List<Sale> recentSales = saleRepository.findSince(thirtyDaysAgo);
-        String bestSelling = recentSales.stream()
-                .filter(s -> s.getProduct() != null)
-                .collect(Collectors.groupingBy(
-                        s -> s.getProduct().getName(),
-                        Collectors.summingInt(Sale::getQuantity)))
-                .entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .orElse("N/A");
-        summary.put("bestSellingProduct", bestSelling);
+        // Inventory movements and recent activity
+        d.put("inventoryMovementsMonth", stockMovementRepo.countBetween(startOfMonth, now));
+        d.put("recentActivity", eventRepo.findTop20ByOrderByCreatedAtDesc().stream()
+            .map(s -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("id", s.getId());
+                m.put("eventType", s.getEventType());
+                m.put("referenceType", s.getReferenceType());
+                m.put("referenceId", s.getReferenceId());
+                m.put("amount", s.getAmount());
+                m.put("quantity", s.getQuantity());
+                m.put("notes", s.getNotes());
+                m.put("createdAt", s.getCreatedAt());
+                return m;
+            }).toList());
 
-        log.debug("Dashboard summary generated: {} products, {} low stock",
-                summary.get("totalProducts"), summary.get("lowStockCount"));
-        return summary;
+        return d;
     }
 
-    public Map<String, Object> getProfitReport() {
-        log.debug("Generating profit report");
-        Map<String, Object> report = new HashMap<>();
-        List<Sale> allSales = saleRepository.findAll();
+    public Map<String, Object> periodReport(String period) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime start, end;
 
-        BigDecimal totalRevenue = allSales.stream()
-                .map(Sale::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        switch (period.toLowerCase()) {
+            case "daily":
+                start = today.atStartOfDay();
+                end = today.atTime(LocalTime.MAX);
+                break;
+            case "weekly":
+                start = today.minusDays(7).atStartOfDay();
+                end = today.atTime(LocalTime.MAX);
+                break;
+            case "monthly":
+                start = today.withDayOfMonth(1).atStartOfDay();
+                end = today.atTime(LocalTime.MAX);
+                break;
+            case "yearly":
+                start = today.withDayOfYear(1).atStartOfDay();
+                end = today.atTime(LocalTime.MAX);
+                break;
+            default:
+                start = today.atStartOfDay();
+                end = today.atTime(LocalTime.MAX);
+        }
 
-        BigDecimal totalCost = allSales.stream()
-                .filter(s -> s.getCostOfGoodsSold() != null)
-                .map(Sale::getCostOfGoodsSold)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put("period", period);
+        r.put("startDate", start);
+        r.put("endDate", end);
+        r.put("salesCount", saleRepo.countSince(start));
+        r.put("totalRevenue", saleRepo.sumTotalSince(start));
+        r.put("totalCost", saleRepo.sumCostSince(start));
+        r.put("totalProfit", saleRepo.sumTotalSince(start).subtract(saleRepo.sumCostSince(start)));
 
-        report.put("totalRevenue", totalRevenue);
-        report.put("totalCost", totalCost);
-        report.put("totalProfit", totalRevenue.subtract(totalCost));
-        report.put("totalSales", allSales.size());
-        return report;
+        // Top selling products
+        List<Object[]> topProducts = saleRepo.topSellingProducts();
+        List<Map<String, Object>> topList = new ArrayList<>();
+        for (Object[] row : topProducts) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("name", row[0]);
+            m.put("quantity", row[1]);
+            topList.add(m);
+        }
+        r.put("topSellingProducts", topList);
+
+        return r;
     }
 
-    public Map<String, Object> getDailyReport() {
-        LocalDateTime start = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
-        return buildReport(start, "Today");
+    public Map<String, Object> inventoryReport() {
+        List<Product> all = productRepo.findByActiveTrue(org.springframework.data.domain.PageRequest.of(0, 10000)).getContent();
+
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put("totalProducts", all.size());
+        r.put("lowStock", all.stream().filter(Product::isLowStock).count());
+        r.put("outOfStock", all.stream().filter(p -> p.getStockQuantity() == 0).count());
+        r.put("totalSellValue", all.stream()
+            .map(p -> p.getSellPrice().multiply(BigDecimal.valueOf(p.getStockQuantity())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add));
+        r.put("totalCostValue", all.stream()
+            .map(p -> p.getBuyPrice().multiply(BigDecimal.valueOf(p.getStockQuantity())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add));
+
+        // By category
+        Map<String, Long> byCategory = new LinkedHashMap<>();
+        for (Product p : all) {
+            byCategory.merge(p.getCategory(), 1L, Long::sum);
+        }
+        r.put("byCategory", byCategory);
+
+        return r;
     }
 
-    public Map<String, Object> getWeeklyReport() {
-        LocalDateTime start = LocalDateTime.now()
-                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                .withHour(0).withMinute(0).withSecond(0);
-        return buildReport(start, "This Week");
+    public Map<String, Object> debtReport() {
+        List<Map<String, Object>> customerBalances = loadCustomerBalances();
+        List<Map<String, Object>> debtors = customerBalances.stream()
+            .filter(m -> ((BigDecimal) m.get("balance")).compareTo(BigDecimal.ZERO) > 0)
+            .toList();
+
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put("totalOwing", debtors.stream()
+            .map(m -> (BigDecimal) m.get("balance"))
+            .reduce(BigDecimal.ZERO, BigDecimal::add));
+        r.put("debtorCount", debtors.size());
+        r.put("debtors", debtors);
+
+        return r;
     }
 
-    public Map<String, Object> getMonthlyReport() {
-        LocalDateTime start = LocalDateTime.now()
-                .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
-        return buildReport(start, "This Month");
-    }
-
-    private Map<String, Object> buildReport(LocalDateTime start, String label) {
-        Map<String, Object> report = new HashMap<>();
-        List<Sale> sales = saleRepository.findSince(start);
-
-        BigDecimal revenue = sales.stream()
-                .map(Sale::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        Long count = saleRepository.countSince(start);
-
-        report.put("period", label);
-        report.put("salesCount", count != null ? count : 0);
-        report.put("revenue", revenue);
-        report.put("sales", sales);
-        return report;
-    }
-
-    public List<Sale> getSalesCsv(LocalDateTime start, LocalDateTime end) {
-        return saleRepository.findByDateRange(start, end);
-    }
-
-    public List<Product> getLowStockReport() {
-        return productRepository.findLowStockProducts();
+    private List<Map<String, Object>> loadCustomerBalances() {
+        return customerRepo.findAll().stream().map(c -> {
+            BigDecimal balance = customerLedgerService.getOutstandingBalance(c.getId());
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", c.getId());
+            row.put("name", c.getName());
+            row.put("phone", c.getPhone());
+            row.put("balance", balance);
+            return row;
+        }).toList();
     }
 }

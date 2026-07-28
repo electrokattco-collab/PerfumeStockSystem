@@ -1,14 +1,13 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { User } from '@/types';
-import api from '@/services/api';
+import { authApi } from '@/services/api';
+import type { User } from '@/types';
 
 export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (userData: User) => void;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  hasRole: (role: string) => boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,48 +17,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await api.get<User>('/auth/me');
-        setUser(response.data);
-      } catch {
+    const token = localStorage.getItem('jwt');
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+    authApi.me()
+      .then((res) => setUser(res.data))
+      .catch(() => {
+        localStorage.removeItem('jwt');
         setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    checkAuth();
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
-  const login = (userData: User) => {
-    setUser(userData);
+  const login = async (username: string, password: string) => {
+    const res = await authApi.login({ username, password });
+    if (res.data.token) {
+      localStorage.setItem('jwt', res.data.token);
+    }
+    setUser(res.data);
   };
 
   const logout = async () => {
     try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout failed:', error);
+      await authApi.logout();
     } finally {
+      localStorage.removeItem('jwt');
       setUser(null);
     }
   };
 
-  const hasRole = (role: string) => {
-    return user?.role === role;
-  };
-
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        logout,
-        hasRole,
-      }}
-    >
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -67,8 +57,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (context === undefined) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }

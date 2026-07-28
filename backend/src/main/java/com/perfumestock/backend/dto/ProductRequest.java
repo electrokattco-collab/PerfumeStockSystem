@@ -1,62 +1,58 @@
 package com.perfumestock.backend.dto;
 
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-
+import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
+import java.util.List;
 
 public class ProductRequest {
+    @NotBlank @Size(max = 50)
+    private String productCode;
 
-    @NotBlank
-    private String productId;
-
-    @NotBlank
+    @NotBlank @Size(max = 100)
     private String name;
 
-    @NotBlank
+    @NotBlank @Size(max = 50)
     private String category;
 
-    private String size;
+    private boolean combo = false;
 
-    @NotNull
-    @Positive
+    @NotNull @DecimalMin("0")
     private BigDecimal buyPrice;
 
-    @NotNull
-    @Positive
+    @NotNull @DecimalMin("0")
     private BigDecimal sellPrice;
 
-    @Min(0)
-    private Integer stockQuantity = 0;
+    private int lowStockThreshold = 5;
 
-    private Integer lowStockThreshold = 5;
+    private List<BundleItemRequest> bundleItems;
 
-    private String imageUrl;
-
-    private String barcode;
-
-    public ProductRequest() {}
-
-    public String getProductId() { return productId; }
-    public void setProductId(String productId) { this.productId = productId; }
+    // Getters and Setters
+    public String getProductCode() { return productCode; }
+    public void setProductCode(String productCode) { this.productCode = productCode; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
-    public String getSize() { return size; }
-    public void setSize(String size) { this.size = size; }
+    public boolean isCombo() { return combo; }
+    public void setCombo(boolean combo) { this.combo = combo; }
     public BigDecimal getBuyPrice() { return buyPrice; }
     public void setBuyPrice(BigDecimal buyPrice) { this.buyPrice = buyPrice; }
     public BigDecimal getSellPrice() { return sellPrice; }
     public void setSellPrice(BigDecimal sellPrice) { this.sellPrice = sellPrice; }
-    public Integer getStockQuantity() { return stockQuantity; }
-    public void setStockQuantity(Integer stockQuantity) { this.stockQuantity = stockQuantity; }
-    public Integer getLowStockThreshold() { return lowStockThreshold; }
-    public void setLowStockThreshold(Integer lowStockThreshold) { this.lowStockThreshold = lowStockThreshold; }
-    public String getImageUrl() { return imageUrl; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
-    public String getBarcode() { return barcode; }
-    public void setBarcode(String barcode) { this.barcode = barcode; }
+    public int getLowStockThreshold() { return lowStockThreshold; }
+    public void setLowStockThreshold(int lowStockThreshold) { this.lowStockThreshold = lowStockThreshold; }
+    public List<BundleItemRequest> getBundleItems() { return bundleItems; }
+    public void setBundleItems(List<BundleItemRequest> bundleItems) { this.bundleItems = bundleItems; }
+
+    public static class BundleItemRequest {
+        @NotNull
+        private Long componentProductId;
+        @NotNull @Min(1)
+        private int quantity;
+
+        public Long getComponentProductId() { return componentProductId; }
+        public void setComponentProductId(Long componentProductId) { this.componentProductId = componentProductId; }
+        public int getQuantity() { return quantity; }
+        public void setQuantity(int quantity) { this.quantity = quantity; }
+    }
 }

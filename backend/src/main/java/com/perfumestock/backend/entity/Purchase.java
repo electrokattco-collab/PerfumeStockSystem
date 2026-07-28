@@ -1,14 +1,11 @@
 package com.perfumestock.backend.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "purchases")
@@ -18,141 +15,73 @@ public class Purchase {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank
-    @Column(name = "purchase_id", nullable = false, unique = true, length = 20)
-    private String purchaseId;
-
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    @JsonIgnoreProperties({"sales", "purchases"})
-    private Product product;
+    @Column(name = "purchase_date", nullable = false)
+    private LocalDateTime purchaseDate;
 
-    @NotBlank
-    @Column(name = "product_name", nullable = false, length = 100)
-    private String productName;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source_type", nullable = false, length = 20)
+    private PurchaseSourceType sourceType = PurchaseSourceType.MANUAL;
 
-    @Column(name = "category", length = 50)
-    private String category;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private PurchaseStatus status = PurchaseStatus.PENDING_REVIEW;
 
-    @NotNull
-    @Min(1)
-    @Column(nullable = false)
-    private Integer quantity;
+    @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal totalAmount = BigDecimal.ZERO;
 
-    @NotNull
-    @Positive
-    @Column(name = "unit_cost", nullable = false, precision = 10, scale = 2)
-    private BigDecimal unitCost;
+    @Column(columnDefinition = "TEXT")
+    private String notes;
 
-    @Column(name = "remaining_quantity", nullable = false)
-    private Integer remainingQuantity;
+    @Column(name = "receipt_reference", length = 255)
+    private String receiptReference;
+
+    @Column(name = "ocr_text", columnDefinition = "TEXT")
+    private String ocrText;
+
+    @Column(name = "ocr_confidence", precision = 5, scale = 2)
+    private BigDecimal ocrConfidence;
+
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
+
+    @Column(name = "confirmed_by", length = 100)
+    private String confirmedBy;
+
+    @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PurchaseItem> items = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public Purchase() {
-    }
-
-    public Purchase(String purchaseId, Product product, String productName, 
-                    String category, Integer quantity, BigDecimal unitCost) {
-        this.purchaseId = purchaseId;
-        this.product = product;
-        this.productName = productName;
-        this.category = category;
-        this.quantity = quantity;
-        this.unitCost = unitCost;
-        this.remainingQuantity = quantity;
-    }
+    public Purchase() {}
 
     @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
+    protected void onCreate() { createdAt = LocalDateTime.now(); }
 
-    public BigDecimal getTotalCost() {
-        return unitCost.multiply(BigDecimal.valueOf(quantity));
-    }
-
-    public int consume(int amount) {
-        if (amount > 0 && amount <= remainingQuantity) {
-            remainingQuantity -= amount;
-            return amount;
-        }
-        return 0;
-    }
-
-    // Getters and Setters
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getPurchaseId() {
-        return purchaseId;
-    }
-
-    public void setPurchaseId(String purchaseId) {
-        this.purchaseId = purchaseId;
-    }
-
-    public Product getProduct() {
-        return product;
-    }
-
-    public void setProduct(Product product) {
-        this.product = product;
-    }
-
-    public String getProductName() {
-        return productName;
-    }
-
-    public void setProductName(String productName) {
-        this.productName = productName;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
-    public Integer getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(Integer quantity) {
-        this.quantity = quantity;
-    }
-
-    public BigDecimal getUnitCost() {
-        return unitCost;
-    }
-
-    public void setUnitCost(BigDecimal unitCost) {
-        this.unitCost = unitCost;
-    }
-
-    public Integer getRemainingQuantity() {
-        return remainingQuantity;
-    }
-
-    public void setRemainingQuantity(Integer remainingQuantity) {
-        this.remainingQuantity = remainingQuantity;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public LocalDateTime getPurchaseDate() { return purchaseDate; }
+    public void setPurchaseDate(LocalDateTime purchaseDate) { this.purchaseDate = purchaseDate; }
+    public PurchaseSourceType getSourceType() { return sourceType; }
+    public void setSourceType(PurchaseSourceType sourceType) { this.sourceType = sourceType; }
+    public PurchaseStatus getStatus() { return status; }
+    public void setStatus(PurchaseStatus status) { this.status = status; }
+    public BigDecimal getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
+    public String getReceiptReference() { return receiptReference; }
+    public void setReceiptReference(String receiptReference) { this.receiptReference = receiptReference; }
+    public String getOcrText() { return ocrText; }
+    public void setOcrText(String ocrText) { this.ocrText = ocrText; }
+    public BigDecimal getOcrConfidence() { return ocrConfidence; }
+    public void setOcrConfidence(BigDecimal ocrConfidence) { this.ocrConfidence = ocrConfidence; }
+    public LocalDateTime getConfirmedAt() { return confirmedAt; }
+    public void setConfirmedAt(LocalDateTime confirmedAt) { this.confirmedAt = confirmedAt; }
+    public String getConfirmedBy() { return confirmedBy; }
+    public void setConfirmedBy(String confirmedBy) { this.confirmedBy = confirmedBy; }
+    public List<PurchaseItem> getItems() { return items; }
+    public void setItems(List<PurchaseItem> items) { this.items = items; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
 }

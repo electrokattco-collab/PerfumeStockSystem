@@ -22,10 +22,6 @@ spring:
     console:
       enabled: true
       path: /h2-console
-  sql:
-    init:
-      mode: always
-      data-locations: classpath:db/migration/V2__Seed_data.sql
 
 server:
   port: 8080

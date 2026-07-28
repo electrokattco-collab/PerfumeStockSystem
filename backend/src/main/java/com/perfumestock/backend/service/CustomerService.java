@@ -1,106 +1,72 @@
 package com.perfumestock.backend.service;
 
-import com.perfumestock.backend.service.AuditLogService;
-import com.perfumestock.backend.dto.PageResponse;
+import com.perfumestock.backend.dto.CustomerRequest;
+import com.perfumestock.backend.dto.CustomerResponse;
 import com.perfumestock.backend.entity.Customer;
 import com.perfumestock.backend.exception.ResourceNotFoundException;
 import com.perfumestock.backend.repository.CustomerRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @Service
 public class CustomerService {
 
-    private static final Logger log = LoggerFactory.getLogger(CustomerService.class);
+    private final CustomerRepository customerRepo;
+    private final CustomerLedgerService ledgerService;
 
-    private final CustomerRepository customerRepository;
-
-    @Autowired
-    public CustomerService(CustomerRepository customerRepository) {
-        this.customerRepository = customerRepository;
+    public CustomerService(CustomerRepository customerRepo, CustomerLedgerService ledgerService) {
+        this.customerRepo = customerRepo;
+        this.ledgerService = ledgerService;
     }
 
-    public List<Customer> getAllCustomers() {
-        return customerRepository.findAll();
+    public Page<CustomerResponse> list(Pageable pageable) {
+        return customerRepo.findAllByOrderByNameAsc(pageable)
+            .map(c -> CustomerResponse.from(c, ledgerService.getOutstandingBalance(c.getId())));
     }
 
-    public PageResponse<Customer> getAllCustomers(Pageable pageable) {
-        Page<Customer> page = customerRepository.findAll(pageable);
-        return PageResponse.of(page);
+    public Page<CustomerResponse> search(String q, Pageable pageable) {
+        return customerRepo.search(q, pageable)
+            .map(c -> CustomerResponse.from(c, ledgerService.getOutstandingBalance(c.getId())));
     }
 
-    public Customer getCustomerById(Long id) {
-        return customerRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", id));
+    public CustomerResponse getById(Long id) {
+        Customer c = customerRepo.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", id));
+        return CustomerResponse.from(c, ledgerService.getOutstandingBalance(c.getId()));
     }
 
-    @Transactional
-    public Customer findOrCreate(String name, String phone) {
-        if (name == null || name.trim().isEmpty()) {
-            return null;
-        }
-        Customer customer = customerRepository.findByNameIgnoreCase(name.trim());
-        if (customer == null) {
-            customer = new Customer(name.trim(), phone);
-            customerRepository.save(customer);
-            log.info("Created new customer: {}", name.trim());
-        } else if (phone != null && !phone.trim().isEmpty()) {
-            customer.setPhone(phone.trim());
-            customerRepository.save(customer);
-        }
-        return customer;
+    public List<CustomerResponse> getDebtors() {
+        return customerRepo.findAll().stream()
+            .map(c -> CustomerResponse.from(c, ledgerService.getOutstandingBalance(c.getId())))
+            .filter(c -> c.getOutstandingBalance().compareTo(java.math.BigDecimal.ZERO) > 0)
+            .sorted((a, b) -> b.getOutstandingBalance().compareTo(a.getOutstandingBalance()))
+            .toList();
     }
 
     @Transactional
-    public Customer createCustomer(Customer c) {
-        log.info("Creating customer: {}", c.getName());
-        return customerRepository.save(c);
+    public CustomerResponse create(CustomerRequest req) {
+        Customer c = new Customer();
+        c.setName(req.getName());
+        c.setPhone(req.getPhone());
+        c.setAddress(req.getAddress());
+        c.setNotes(req.getNotes());
+        Customer saved = customerRepo.save(c);
+        return CustomerResponse.from(saved, ledgerService.getOutstandingBalance(saved.getId()));
     }
 
     @Transactional
-    public Customer updateCustomer(Long id, Customer updated) {
-        Customer c = getCustomerById(id);
-        c.setName(updated.getName());
-        c.setPhone(updated.getPhone());
-        log.info("Updated customer: {} (id: {})", c.getName(), id);
-        return customerRepository.save(c);
-    }
-
-    @Transactional
-    public void addOwing(Long customerId, BigDecimal amount) {
-        Customer c = getCustomerById(customerId);
-        c.setOutstandingBalance(c.getOutstandingBalance().add(amount));
-        customerRepository.save(c);
-        log.debug("Added owing to customer {}: {} (new balance: {})",
-                c.getName(), amount, c.getOutstandingBalance());
-    }
-
-    @Transactional
-    public void reduceOwing(Long customerId, BigDecimal amount) {
-        Customer c = getCustomerById(customerId);
-        c.setOutstandingBalance(c.getOutstandingBalance().subtract(amount));
-        if (c.getOutstandingBalance().compareTo(BigDecimal.ZERO) < 0) {
-            c.setOutstandingBalance(BigDecimal.ZERO);
-        }
-        customerRepository.save(c);
-        log.debug("Reduced owing from customer {}: {} (new balance: {})",
-                c.getName(), amount, c.getOutstandingBalance());
-    }
-
-    public List<Customer> searchByName(String name) {
-        return customerRepository.findByNameContainingIgnoreCase(name);
-    }
-
-    public PageResponse<Customer> searchByName(String name, Pageable pageable) {
-        Page<Customer> page = customerRepository.findByNameContainingIgnoreCase(name, pageable);
-        return PageResponse.of(page);
+    public CustomerResponse update(Long id, CustomerRequest req) {
+        Customer c = customerRepo.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", id));
+        c.setName(req.getName());
+        c.setPhone(req.getPhone());
+        c.setAddress(req.getAddress());
+        c.setNotes(req.getNotes());
+        Customer saved = customerRepo.save(c);
+        return CustomerResponse.from(saved, ledgerService.getOutstandingBalance(saved.getId()));
     }
 }

@@ -3,9 +3,9 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: perfume-stock-db
+    container_name: arthurford-db
     environment:
-      POSTGRES_DB: ${DB_NAME:-perfumestock}
+      POSTGRES_DB: ${DB_NAME:-arthurford}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
@@ -22,14 +22,14 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: perfume-stock-backend
+    container_name: arthurford-backend
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-perfumestock}
+      DB_NAME: ${DB_NAME:-arthurford}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
@@ -42,7 +42,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: perfume-stock-frontend
+    container_name: arthurford-frontend
     depends_on:
       - backend
     ports:
