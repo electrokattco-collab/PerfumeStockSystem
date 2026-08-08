@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { productApi } from '@/services/api';
+import { productApi, unwrapList } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,7 @@ export default function Inventory() {
       const res = debouncedSearch
         ? await productApi.search(debouncedSearch, { page: 0, size: 100 })
         : await productApi.getAll({ page: 0, size: 100 });
-      setProducts(res.data.content);
+      setProducts(unwrapList<Product>(res));
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally { setLoading(false); }
@@ -43,7 +43,7 @@ export default function Inventory() {
     setShowForm(true);
     try {
       const res = await productApi.getNonCombo();
-      setAllProducts(res.data);
+      setAllProducts(unwrapList<Product>(res));
     } catch {}
   };
 

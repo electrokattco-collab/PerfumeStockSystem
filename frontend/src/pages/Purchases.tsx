@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { purchaseApi, productApi } from '@/services/api';
+import { purchaseApi, productApi, unwrapList } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,8 +24,8 @@ export default function Purchases() {
       purchaseApi.getAll({ page: 0, size: 50 }),
       productApi.getNonCombo(),
     ]).then(([pRes, prRes]) => {
-      setPurchases(pRes.data.content);
-      setProducts(prRes.data);
+      setPurchases(unwrapList<Purchase>(pRes));
+      setProducts(unwrapList<Product>(prRes));
     }).finally(() => setLoading(false));
   }, []);
 
@@ -55,7 +55,7 @@ export default function Purchases() {
       setItems([]);
       setNotes('');
       const res = await purchaseApi.getAll({ page: 0, size: 50 });
-      setPurchases(res.data.content);
+      setPurchases(unwrapList<Purchase>(res));
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -67,7 +67,7 @@ export default function Purchases() {
     try {
       await purchaseApi.confirm(id);
       const res = await purchaseApi.getAll({ page: 0, size: 50 });
-      setPurchases(res.data.content);
+      setPurchases(unwrapList<Purchase>(res));
       toast({ title: 'Purchase confirmed' });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { AxiosResponse } from 'axios';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -24,6 +25,14 @@ api.interceptors.response.use(
     return Promise.reject(new Error(msg));
   }
 );
+
+export function unwrapList<T = any>(response: AxiosResponse<any>): T[] {
+  const data = response?.data;
+  if (Array.isArray(data)) return data as T[];
+  if (data && Array.isArray(data.content)) return data.content as T[];
+  if (data && Array.isArray(data.items)) return data.items as T[];
+  return [] as T[];
+}
 
 export const authApi = {
   login: (data: { username: string; password: string }) => api.post('/auth/login', data),

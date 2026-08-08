@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { saleApi, productApi, customerApi } from '@/services/api';
+import { saleApi, productApi, customerApi, unwrapList } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,9 +28,9 @@ export default function Sales() {
       productApi.getNonCombo(),
       customerApi.getAll({ page: 0, size: 200 }),
     ]).then(([sRes, pRes, cRes]) => {
-      setSales(sRes.data.content);
-      setProducts(pRes.data);
-      setCustomers(cRes.data.content);
+      setSales(unwrapList<Sale>(sRes));
+      setProducts(unwrapList<Product>(pRes));
+      setCustomers(unwrapList<Customer>(cRes));
     }).finally(() => setLoading(false));
   }, []);
 
@@ -69,7 +69,7 @@ export default function Sales() {
       setShowForm(false);
       setItems([]);
       const res = await saleApi.getAll({ page: 0, size: 50 });
-      setSales(res.data.content);
+      setSales(unwrapList<Sale>(res));
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally { setSaving(false); }

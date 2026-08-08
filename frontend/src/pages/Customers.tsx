@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { customerApi } from '@/services/api';
+import { customerApi, unwrapList } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,7 +28,7 @@ export default function Customers() {
       const res = debouncedSearch
         ? await customerApi.search(debouncedSearch, { page: 0, size: 100 })
         : await customerApi.getAll({ page: 0, size: 100 });
-      setCustomers(res.data.content);
+      setCustomers(unwrapList<Customer>(res));
     } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
     finally { setLoading(false); }
   }, [debouncedSearch, toast]);
