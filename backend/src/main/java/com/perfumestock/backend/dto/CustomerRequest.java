@@ -1,6 +1,7 @@
 package com.perfumestock.backend.dto;
 
 import jakarta.validation.constraints.*;
+import java.math.BigDecimal;
 
 public class CustomerRequest {
     @NotBlank @Size(max = 100)
@@ -8,6 +9,7 @@ public class CustomerRequest {
     private String phone;
     private String address;
     private String notes;
+    private BigDecimal amountOwing;
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -17,4 +19,6 @@ public class CustomerRequest {
     public void setAddress(String address) { this.address = address; }
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+    public BigDecimal getAmountOwing() { return amountOwing; }
+    public void setAmountOwing(BigDecimal amountOwing) { this.amountOwing = amountOwing; }
 }

@@ -54,6 +54,7 @@ public class CustomerService {
         c.setPhone(req.getPhone());
         c.setAddress(req.getAddress());
         c.setNotes(req.getNotes());
+        c.setAmountOwing(req.getAmountOwing() != null ? req.getAmountOwing() : java.math.BigDecimal.ZERO);
         Customer saved = customerRepo.save(c);
         return CustomerResponse.from(saved, ledgerService.getOutstandingBalance(saved.getId()));
     }
@@ -66,6 +67,9 @@ public class CustomerService {
         c.setPhone(req.getPhone());
         c.setAddress(req.getAddress());
         c.setNotes(req.getNotes());
+        if (req.getAmountOwing() != null) {
+            c.setAmountOwing(req.getAmountOwing());
+        }
         Customer saved = customerRepo.save(c);
         return CustomerResponse.from(saved, ledgerService.getOutstandingBalance(saved.getId()));
     }

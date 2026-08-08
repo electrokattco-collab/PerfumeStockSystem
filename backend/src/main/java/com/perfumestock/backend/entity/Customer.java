@@ -3,6 +3,7 @@ package com.perfumestock.backend.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "customers")
@@ -31,6 +32,11 @@ public class Customer {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // Simplified outstanding amount for single-user mode / legacy compatibility.
+    // Stored as a monetary amount (nullable); default zero if null.
+    @Column(name = "amount_owing", precision = 19, scale = 2)
+    private BigDecimal amountOwing;
+
     public Customer() {}
 
     @PrePersist
@@ -50,4 +56,6 @@ public class Customer {
     public void setNotes(String notes) { this.notes = notes; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public BigDecimal getAmountOwing() { return amountOwing; }
+    public void setAmountOwing(BigDecimal amountOwing) { this.amountOwing = amountOwing; }
 }
