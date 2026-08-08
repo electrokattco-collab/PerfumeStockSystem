@@ -136,6 +136,9 @@ Also sets `jwt` httpOnly cookie.
 ### GET `/api/customers?page=0&size=50&sort=name&direction=asc`
 **Authenticated** - List all customers (paginated)
 
+### GET `/api/customers`
+**Simplified profile** - Returns a simple customer list with `id`, `name`, `phone`, `address`, `notes`, `amountOwing`, and `createdAt`
+
 ### GET `/api/customers/{id}`
 **Authenticated** - Get customer by ID
 
